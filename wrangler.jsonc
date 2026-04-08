@@ -12,7 +12,7 @@
     {
       "binding": "DB",
       "database_name": "zenan-fleet-db",
-      "database_id": "local",
+      "database_id": "428ca96c-f279-4e9c-9e27-887a1c405965",
       "migrations_dir": "src/db/migrations"
     }
   ]
