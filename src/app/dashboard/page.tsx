@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DateRangePicker } from "@/components/dashboard/date-range-picker";
 import { EmptyState } from "@/components/shared/empty-state";
+import { useDemo } from "@/lib/demo-context";
 import { type DateRange, getPresetRange, formatCurrency } from "@/lib/date-utils";
 import {
   DollarSign, TrendingUp, TrendingDown, Truck, Fuel, Wrench, Shield,
@@ -55,15 +56,17 @@ export default function DashboardPage() {
   const [dateRange, setDateRange] = useState<DateRange>(getPresetRange("this-month"));
   const [data, setData] = useState<FleetData | null>(null);
   const [loading, setLoading] = useState(true);
+  const { demoVisible } = useDemo();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
+    const demoParam = demoVisible ? "" : "&excludeDemo=1";
     const res = await fetch(
-      `/api/summary/fleet?startDate=${dateRange.from}&endDate=${dateRange.to}`
+      `/api/summary/fleet?startDate=${dateRange.from}&endDate=${dateRange.to}${demoParam}`
     );
     setData(await res.json());
     setLoading(false);
-  }, [dateRange]);
+  }, [dateRange, demoVisible]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

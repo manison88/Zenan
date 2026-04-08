@@ -4,25 +4,30 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/shared/empty-state";
+import { useDemo } from "@/lib/demo-context";
 import { Plus, Truck, Trash2 } from "lucide-react";
 
 interface TruckRecord {
   id: number;
   truckNumber: string;
+  isDemo: number;
   createdAt: string;
 }
 
 export default function TrucksPage() {
   const [trucks, setTrucks] = useState<TruckRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const { demoVisible } = useDemo();
 
   useEffect(() => {
     fetchTrucks();
-  }, []);
+  }, [demoVisible]);
 
   async function fetchTrucks() {
-    const res = await fetch("/api/trucks");
+    const params = demoVisible ? "" : "?excludeDemo=1";
+    const res = await fetch(`/api/trucks${params}`);
     const data = await res.json();
     setTrucks(data);
     setLoading(false);
@@ -79,7 +84,10 @@ export default function TrucksPage() {
             <Link key={truck.id} href={`/trucks/${truck.id}/trips`}>
               <Card className="transition-shadow hover:shadow-md cursor-pointer">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-lg">Truck #{truck.truckNumber}</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    Truck #{truck.truckNumber}
+                    {truck.isDemo === 1 && <Badge variant="secondary" className="text-xs">DEMO</Badge>}
+                  </CardTitle>
                   <button
                     onClick={(e) => handleDelete(truck.id, e)}
                     className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"

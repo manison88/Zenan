@@ -5,6 +5,7 @@ import { relations, sql } from "drizzle-orm";
 export const trucks = sqliteTable("trucks", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   truckNumber: text("truck_number").notNull().unique(),
+  isDemo: integer("is_demo").notNull().default(0),
   createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
 });
 

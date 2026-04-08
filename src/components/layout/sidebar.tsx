@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Truck, Menu, X } from "lucide-react";
+import { useDemo } from "@/lib/demo-context";
+import { LayoutDashboard, Truck, Menu, X, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 
 const navItems = [
@@ -14,6 +15,7 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { demoVisible, setDemoVisible } = useDemo();
 
   return (
     <>
@@ -69,6 +71,32 @@ export function Sidebar() {
             );
           })}
         </nav>
+
+        {/* Demo toggle */}
+        <div className="border-t p-4">
+          <button
+            onClick={() => setDemoVisible(!demoVisible)}
+            className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent/50"
+          >
+            <span className="flex items-center gap-3">
+              {demoVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+              Demo Data
+            </span>
+            <span
+              className={cn(
+                "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
+                demoVisible ? "bg-primary" : "bg-muted"
+              )}
+            >
+              <span
+                className={cn(
+                  "inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform",
+                  demoVisible ? "translate-x-4.5" : "translate-x-0.5"
+                )}
+              />
+            </span>
+          </button>
+        </div>
       </aside>
     </>
   );

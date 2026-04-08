@@ -1,3 +1,4 @@
+ALTER TABLE `trucks` ADD `is_demo` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
 INSERT INTO `repair_types` (`name`, `is_default`) VALUES
   ('Tires', 1),
   ('Brakes', 1),

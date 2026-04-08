@@ -8,6 +8,13 @@
       "when": 1775675706605,
       "tag": "0000_vengeful_naoko",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1775677986418,
+      "tag": "0001_slim_lady_deathstrike",
+      "breakpoints": true
     }
   ]
 }

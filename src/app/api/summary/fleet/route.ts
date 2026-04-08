@@ -13,8 +13,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "startDate and endDate required" }, { status: 400 });
   }
 
+  const excludeDemo = searchParams.get("excludeDemo") === "1";
+
   const db = await getDb();
-  const allTrucks = await db.select().from(trucks).orderBy(trucks.truckNumber);
+
+  let trucksQuery = db.select().from(trucks);
+  if (excludeDemo) {
+    trucksQuery = trucksQuery.where(eq(trucks.isDemo, 0)) as typeof trucksQuery;
+  }
+  const allTrucks = await trucksQuery.orderBy(trucks.truckNumber);
   const months = countMonthsInRange(startDate, endDate);
 
   const truckSummaries = await Promise.all(

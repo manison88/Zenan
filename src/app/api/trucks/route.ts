@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/db";
 import { trucks } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const excludeDemo = searchParams.get("excludeDemo") === "1";
+
   const db = await getDb();
-  const allTrucks = await db.select().from(trucks).orderBy(trucks.truckNumber);
+
+  let query = db.select().from(trucks);
+  if (excludeDemo) {
+    query = query.where(eq(trucks.isDemo, 0)) as typeof query;
+  }
+
+  const allTrucks = await query.orderBy(trucks.truckNumber);
   return NextResponse.json(allTrucks);
 }
 
