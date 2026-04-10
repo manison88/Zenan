@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/db";
-import { trucks, trips, fuelLogs, repairs, fixedCosts } from "@/db/schema";
+import { trucks, trips, fuelLogs, repairs, fixedCosts, customFixedCosts } from "@/db/schema";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { countMonthsInRange } from "@/lib/date-utils";
 
@@ -50,14 +50,20 @@ export async function GET(request: NextRequest) {
         .where(eq(fixedCosts.truckId, truck.id))
         .get();
 
+      const customCosts = await db
+        .select()
+        .from(customFixedCosts)
+        .where(eq(customFixedCosts.truckId, truck.id));
+
       const insurance = (fc?.insurance || 0) * months;
       const parking = (fc?.parking || 0) * months;
       const eld = (fc?.eld || 0) * months;
       const tolls = (fc?.tolls || 0) * months;
+      const customFixedTotal = customCosts.reduce((sum, c) => sum + c.amount, 0) * months;
       const grossPay = grossResult?.total || 0;
       const fuelTotal = fuelResult?.total || 0;
       const repairsTotal = repairsResult?.total || 0;
-      const fixedTotal = insurance + parking + eld + tolls;
+      const fixedTotal = insurance + parking + eld + tolls + customFixedTotal;
       const totalDeductions = fuelTotal + repairsTotal + fixedTotal;
       const netPay = grossPay - totalDeductions;
 
@@ -71,6 +77,7 @@ export async function GET(request: NextRequest) {
         parking,
         eld,
         tolls,
+        customFixedTotal,
         fixedTotal,
         totalDeductions,
         netPay,
@@ -88,11 +95,12 @@ export async function GET(request: NextRequest) {
       parking: acc.parking + t.parking,
       eld: acc.eld + t.eld,
       tolls: acc.tolls + t.tolls,
+      customFixedTotal: acc.customFixedTotal + t.customFixedTotal,
       fixedTotal: acc.fixedTotal + t.fixedTotal,
       totalDeductions: acc.totalDeductions + t.totalDeductions,
       netPay: acc.netPay + t.netPay,
     }),
-    { grossPay: 0, fuelTotal: 0, repairsTotal: 0, insurance: 0, parking: 0, eld: 0, tolls: 0, fixedTotal: 0, totalDeductions: 0, netPay: 0 }
+    { grossPay: 0, fuelTotal: 0, repairsTotal: 0, insurance: 0, parking: 0, eld: 0, tolls: 0, customFixedTotal: 0, fixedTotal: 0, totalDeductions: 0, netPay: 0 }
   );
 
   return NextResponse.json({ trucks: truckSummaries, totals, months });

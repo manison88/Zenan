@@ -10,6 +10,7 @@ import {
   subYears,
   differenceInMonths,
   format,
+  parseISO,
 } from "date-fns";
 
 export type DatePreset =
@@ -87,7 +88,7 @@ export function formatCurrency(amount: number): string {
 }
 
 export function formatDate(dateStr: string): string {
-  return format(new Date(dateStr), "MM/dd/yyyy");
+  return format(parseISO(dateStr), "MM/dd/yyyy");
 }
 
 export const DATE_PRESET_LABELS: Record<DatePreset, string> = {

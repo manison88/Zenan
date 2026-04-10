@@ -15,6 +15,7 @@ export const trucksRelations = relations(trucks, ({ many, one }) => ({
   fuelLogs: many(fuelLogs),
   repairs: many(repairs),
   fixedCosts: one(fixedCosts),
+  customFixedCosts: many(customFixedCosts),
 }));
 
 // ── Odometer Logs ───────────────────────────────────────────────────────────
@@ -148,4 +149,25 @@ export const fixedCosts = sqliteTable(
 
 export const fixedCostsRelations = relations(fixedCosts, ({ one }) => ({
   truck: one(trucks, { fields: [fixedCosts.truckId], references: [trucks.id] }),
+}));
+
+// ── Custom Fixed Costs ──────────────────────────────────────────────────────
+export const customFixedCosts = sqliteTable(
+  "custom_fixed_costs",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    truckId: integer("truck_id")
+      .notNull()
+      .references(() => trucks.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    amount: real("amount").notNull().default(0),
+    createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
+  },
+  (table) => [
+    index("custom_fixed_costs_truck_idx").on(table.truckId),
+  ]
+);
+
+export const customFixedCostsRelations = relations(customFixedCosts, ({ one }) => ({
+  truck: one(trucks, { fields: [customFixedCosts.truckId], references: [trucks.id] }),
 }));

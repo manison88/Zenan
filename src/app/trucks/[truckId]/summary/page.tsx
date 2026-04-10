@@ -15,6 +15,8 @@ interface TruckSummary {
   parking: number;
   eld: number;
   tolls: number;
+  customFixedTotal: number;
+  customCosts: { name: string; total: number }[];
   fixedTotal: number;
   totalDeductions: number;
   netPay: number;
@@ -70,6 +72,9 @@ export default function TruckSummaryPage() {
                 <DeductionRow icon={<ParkingCircle className="h-4 w-4" />} label={`Parking (${summary.months} mo)`} amount={summary.parking} />
                 <DeductionRow icon={<Radio className="h-4 w-4" />} label={`ELD (${summary.months} mo)`} amount={summary.eld} />
                 <DeductionRow icon={<CircleDollarSign className="h-4 w-4" />} label={`Tolls (${summary.months} mo)`} amount={summary.tolls} />
+                {summary.customCosts?.map((cc) => (
+                  <DeductionRow key={cc.name} icon={<DollarSign className="h-4 w-4" />} label={`${cc.name} (${summary.months} mo)`} amount={cc.total} />
+                ))}
                 <div className="border-t pt-3 flex justify-between font-semibold">
                   <span>Total Deductions</span>
                   <span className="text-red-600">{formatCurrency(summary.totalDeductions)}</span>

@@ -28,6 +28,7 @@ interface TruckSummary {
   parking: number;
   eld: number;
   tolls: number;
+  customFixedTotal: number;
   fixedTotal: number;
   totalDeductions: number;
   netPay: number;
@@ -43,6 +44,7 @@ interface FleetData {
     parking: number;
     eld: number;
     tolls: number;
+    customFixedTotal: number;
     fixedTotal: number;
     totalDeductions: number;
     netPay: number;
@@ -183,6 +185,7 @@ export default function DashboardPage() {
     { name: "Parking", value: totals.parking },
     { name: "ELD", value: totals.eld },
     { name: "Tolls", value: totals.tolls },
+    { name: "Other", value: totals.customFixedTotal },
   ].filter((d) => d.value > 0);
 
   return (
@@ -285,6 +288,7 @@ export default function DashboardPage() {
             <div className="flex items-center gap-2"><ParkingCircle className="h-4 w-4 text-purple-500" /><span className="text-sm">Parking:</span><span className="font-medium">{formatCurrency(totals.parking)}</span></div>
             <div className="flex items-center gap-2"><Radio className="h-4 w-4 text-cyan-500" /><span className="text-sm">ELD:</span><span className="font-medium">{formatCurrency(totals.eld)}</span></div>
             <div className="flex items-center gap-2"><CircleDollarSign className="h-4 w-4 text-green-500" /><span className="text-sm">Tolls:</span><span className="font-medium">{formatCurrency(totals.tolls)}</span></div>
+            {totals.customFixedTotal > 0 && <div className="flex items-center gap-2"><DollarSign className="h-4 w-4 text-amber-500" /><span className="text-sm">Other:</span><span className="font-medium">{formatCurrency(totals.customFixedTotal)}</span></div>}
           </div>
         </CardContent>
       </Card>
