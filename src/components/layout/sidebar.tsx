@@ -21,7 +21,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { demoVisible, setDemoVisible } = useDemo();
-  const { updatePin } = usePin();
+  const { updatePin, fleetName } = usePin();
   const [pinDialogOpen, setPinDialogOpen] = useState(false);
   const [pinForm, setPinForm] = useState({ current: "", newPin: "", confirm: "" });
   const [pinError, setPinError] = useState("");
@@ -80,9 +80,11 @@ export function Sidebar() {
         )}
       >
         <div className="flex h-16 items-center border-b px-6">
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <Truck className="h-6 w-6 text-primary" />
-            <span className="text-lg font-bold text-primary">Zenan Fleet</span>
+          <Link href="/dashboard" className="flex items-center gap-2 overflow-hidden">
+            <Truck className="h-6 w-6 shrink-0 text-primary" />
+            <span className="truncate text-lg font-bold text-primary">
+              {fleetName || "Zenan Fleet"}
+            </span>
           </Link>
         </div>
 
