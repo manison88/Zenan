@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DateRangePicker } from "@/components/dashboard/date-range-picker";
+import { UpcomingMaintenanceCard } from "@/components/dashboard/upcoming-maintenance";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useDemo } from "@/lib/demo-context";
 import { type DateRange, getPresetRange, formatCurrency } from "@/lib/date-utils";
@@ -232,6 +233,11 @@ export default function DashboardPage() {
             </p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Upcoming Maintenance */}
+      <div className="mb-6">
+        <UpcomingMaintenanceCard />
       </div>
 
       {/* Charts */}

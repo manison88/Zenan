@@ -14,6 +14,7 @@ export const trucksRelations = relations(trucks, ({ many, one }) => ({
   trips: many(trips),
   fuelLogs: many(fuelLogs),
   repairs: many(repairs),
+  maintenanceLogs: many(maintenanceLogs),
   fixedCosts: one(fixedCosts),
   customFixedCosts: many(customFixedCosts),
 }));
@@ -126,6 +127,41 @@ export const repairTypes = sqliteTable("repair_types", {
 
 export const repairTypesRelations = relations(repairTypes, ({ many }) => ({
   repairs: many(repairs),
+  maintenanceLogs: many(maintenanceLogs),
+}));
+
+// ── Maintenance Logs ────────────────────────────────────────────────────────
+export const maintenanceLogs = sqliteTable(
+  "maintenance_logs",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    truckId: integer("truck_id")
+      .notNull()
+      .references(() => trucks.id, { onDelete: "cascade" }),
+    repairTypeId: integer("repair_type_id")
+      .notNull()
+      .references(() => repairTypes.id),
+    serviceDate: text("service_date"),
+    serviceOdometer: real("service_odometer"),
+    cost: real("cost").notNull().default(0),
+    notes: text("notes"),
+    nextDueDate: text("next_due_date"),
+    nextDueOdometer: real("next_due_odometer"),
+    createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
+  },
+  (table) => [
+    index("maintenance_truck_idx").on(table.truckId),
+    index("maintenance_truck_type_idx").on(table.truckId, table.repairTypeId),
+    index("maintenance_next_due_date_idx").on(table.nextDueDate),
+  ]
+);
+
+export const maintenanceLogsRelations = relations(maintenanceLogs, ({ one }) => ({
+  truck: one(trucks, { fields: [maintenanceLogs.truckId], references: [trucks.id] }),
+  repairType: one(repairTypes, {
+    fields: [maintenanceLogs.repairTypeId],
+    references: [repairTypes.id],
+  }),
 }));
 
 // ── Fixed Costs ─────────────────────────────────────────────────────────────
