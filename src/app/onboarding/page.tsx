@@ -1,41 +1,50 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Truck,
   ArrowLeft,
   ArrowRight,
-  Lock,
   PlayCircle,
   Loader2,
   Check,
+  AlertCircle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { usePin } from "@/lib/pin-context";
+import { useAuth } from "@/lib/auth-context";
 import { useDemo } from "@/lib/demo-context";
 import { cn } from "@/lib/utils";
 
 const TOTAL_STEPS = 3;
 
 export default function OnboardingPage() {
+  return (
+    <Suspense fallback={null}>
+      <OnboardingWizard />
+    </Suspense>
+  );
+}
+
+function OnboardingWizard() {
   const router = useRouter();
-  const { setInitialPin, completeOnboarding } = usePin();
+  const searchParams = useSearchParams();
+  const { setTenant } = useAuth();
   const { seedDemoData } = useDemo();
 
+  const wantsDemo = searchParams.get("demo") === "1";
+
   const [step, setStep] = useState(1);
-  const [fleetName, setFleetName] = useState(() =>
-    typeof window === "undefined"
-      ? ""
-      : localStorage.getItem("zenan-fleet-name") ?? ""
-  );
+  const [fleetName, setFleetName] = useState("");
+  const [email, setEmail] = useState("");
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
   const [pinError, setPinError] = useState("");
+  const [signupError, setSignupError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   function goNext() {
@@ -70,15 +79,31 @@ export default function OnboardingPage() {
       setPinError("PINs don't match.");
       return;
     }
-    setInitialPin(pin);
     goNext();
   }
 
   async function finish(choice: "clean" | "demo") {
     setSubmitting(true);
-    completeOnboarding(fleetName);
+    setSignupError("");
+
+    const signupRes = await fetch("/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fleetName, email, pin }),
+      credentials: "include",
+    });
+    const signupData = await signupRes.json().catch(() => ({}));
+    if (!signupRes.ok) {
+      setSignupError(signupData.error || "Failed to create account");
+      setSubmitting(false);
+      // If the email collision happened, jump back to step 1 so they can change it.
+      if (signupRes.status === 409) setStep(1);
+      return;
+    }
+    if (signupData.tenant) setTenant(signupData.tenant);
+
     if (choice === "demo") {
-      await seedDemoData();
+      await seedDemoData().catch(() => {});
       router.push("/dashboard");
     } else {
       localStorage.setItem("zenan-seed-demo", "false");
@@ -109,10 +134,10 @@ export default function OnboardingPage() {
         {step === 1 && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl">Name your fleet</CardTitle>
+              <CardTitle className="text-2xl">Create your account</CardTitle>
               <p className="text-sm text-muted-foreground">
-                We&apos;ll use this in your dashboard header. You can change it
-                later.
+                Two things up front: what to call your fleet and where to reach
+                you.
               </p>
             </CardHeader>
             <CardContent>
@@ -130,6 +155,27 @@ export default function OnboardingPage() {
                     maxLength={60}
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Used to sign in. We won&apos;t send you anything else.
+                  </p>
+                </div>
+                {signupError && (
+                  <p className="flex items-center gap-2 text-sm text-destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    {signupError}
+                  </p>
+                )}
                 <div className="flex justify-end pt-2">
                   <Button type="submit">
                     Continue
@@ -146,7 +192,7 @@ export default function OnboardingPage() {
             <CardHeader>
               <CardTitle className="text-2xl">Set a PIN</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Your PIN locks the app on this device. 4–12 digits.
+                You&apos;ll use this with your email to sign in. 4–12 digits.
               </p>
             </CardHeader>
             <CardContent>
@@ -185,10 +231,7 @@ export default function OnboardingPage() {
                   />
                 </div>
                 {pinError && (
-                  <p className="flex items-center gap-2 text-sm text-destructive">
-                    <Lock className="h-4 w-4" />
-                    {pinError}
-                  </p>
+                  <p className="text-sm text-destructive">{pinError}</p>
                 )}
                 <div className="flex justify-between pt-2">
                   <Button type="button" variant="ghost" onClick={goBack}>
@@ -216,6 +259,7 @@ export default function OnboardingPage() {
             <CardContent className="space-y-3">
               <PathOption
                 disabled={submitting}
+                highlighted={!wantsDemo}
                 onClick={() => finish("clean")}
                 title="Start with my truck"
                 description="Add your first truck now. Begin logging trips, fuel, and repairs right away."
@@ -223,11 +267,18 @@ export default function OnboardingPage() {
               />
               <PathOption
                 disabled={submitting}
+                highlighted={wantsDemo}
                 onClick={() => finish("demo")}
                 title="Explore with demo data"
                 description="Drop in a sample truck with weeks of trips, fuel logs, and repairs to poke around."
                 icon={<PlayCircle className="h-5 w-5" />}
               />
+              {signupError && (
+                <p className="flex items-center gap-2 pt-2 text-sm text-destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  {signupError}
+                </p>
+              )}
               {submitting && (
                 <p className="flex items-center gap-2 pt-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -292,12 +343,14 @@ function PathOption({
   icon,
   onClick,
   disabled,
+  highlighted,
 }: {
   title: string;
   description: string;
   icon: React.ReactNode;
   onClick: () => void;
   disabled?: boolean;
+  highlighted?: boolean;
 }) {
   return (
     <button
@@ -306,7 +359,8 @@ function PathOption({
       disabled={disabled}
       className={cn(
         "flex w-full items-start gap-4 rounded-lg border p-4 text-left transition-colors",
-        "hover:border-primary hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
+        "hover:border-primary hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60",
+        highlighted && "border-primary/40 bg-primary/5"
       )}
     >
       <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">

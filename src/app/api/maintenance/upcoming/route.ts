@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/db";
 import { maintenanceLogs, repairTypes, trucks, odometerLogs } from "@/db/schema";
-import { eq, isNotNull, or, desc, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, or, desc, sql } from "drizzle-orm";
+import { requireTenant, isAuthError } from "@/lib/auth/session";
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 const DUE_SOON_DAYS = 14;
@@ -40,6 +41,9 @@ function urgencyRank(u: Urgency): number {
 }
 
 export async function GET(request: NextRequest) {
+  const auth = await requireTenant(request);
+  if (isAuthError(auth)) return auth;
+
   const { searchParams } = new URL(request.url);
   const excludeDemo = searchParams.get("excludeDemo") === "1";
 
@@ -63,12 +67,20 @@ export async function GET(request: NextRequest) {
     .innerJoin(trucks, eq(maintenanceLogs.truckId, trucks.id))
     .leftJoin(repairTypes, eq(maintenanceLogs.repairTypeId, repairTypes.id))
     .where(
-      or(
-        isNotNull(maintenanceLogs.nextDueDate),
-        isNotNull(maintenanceLogs.nextDueOdometer)
+      and(
+        eq(trucks.tenantId, auth.tenantId),
+        or(
+          isNotNull(maintenanceLogs.nextDueDate),
+          isNotNull(maintenanceLogs.nextDueOdometer)
+        )
       )
     )
     .orderBy(desc(maintenanceLogs.serviceDate), desc(maintenanceLogs.createdAt));
+
+  const ownedTrucks = db
+    .select({ id: trucks.id })
+    .from(trucks)
+    .where(eq(trucks.tenantId, auth.tenantId));
 
   const odoRows = await db
     .select({
@@ -76,6 +88,7 @@ export async function GET(request: NextRequest) {
       maxOdo: sql<number>`max(${odometerLogs.endingReading})`,
     })
     .from(odometerLogs)
+    .where(inArray(odometerLogs.truckId, ownedTrucks))
     .groupBy(odometerLogs.truckId);
 
   const odoByTruck = new Map<number, number>();

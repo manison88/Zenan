@@ -1,15 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useDemo } from "@/lib/demo-context";
-import { usePin } from "@/lib/pin-context";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { useAuth } from "@/lib/auth-context";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LayoutDashboard, Truck, Menu, X, Eye, EyeOff, Lock } from "lucide-react";
+import {
+  LayoutDashboard,
+  Truck,
+  Menu,
+  X,
+  Eye,
+  EyeOff,
+  Lock,
+  LogOut,
+} from "lucide-react";
 import { useState } from "react";
 
 const navItems = [
@@ -19,20 +34,28 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { demoVisible, setDemoVisible } = useDemo();
-  const { updatePin, fleetName } = usePin();
+  const { tenant, signOut } = useAuth();
   const [pinDialogOpen, setPinDialogOpen] = useState(false);
   const [pinForm, setPinForm] = useState({ current: "", newPin: "", confirm: "" });
   const [pinError, setPinError] = useState("");
   const [pinSuccess, setPinSuccess] = useState(false);
+  const [pinSaving, setPinSaving] = useState(false);
 
-  function handlePinChange(e: React.FormEvent) {
+  const fleetName = tenant?.fleetName || "Zenan Fleet";
+
+  async function handlePinChange(e: React.FormEvent) {
     e.preventDefault();
     setPinError("");
 
-    if (pinForm.newPin.length < 4) {
-      setPinError("PIN must be at least 4 characters");
+    if (pinForm.newPin.length < 4 || pinForm.newPin.length > 12) {
+      setPinError("PIN must be 4–12 digits");
+      return;
+    }
+    if (!/^\d+$/.test(pinForm.newPin)) {
+      setPinError("PIN must be numeric");
       return;
     }
     if (pinForm.newPin !== pinForm.confirm) {
@@ -40,18 +63,36 @@ export function Sidebar() {
       return;
     }
 
-    const success = updatePin(pinForm.current, pinForm.newPin);
-    if (!success) {
-      setPinError("Current PIN is incorrect");
-      return;
+    setPinSaving(true);
+    try {
+      const res = await fetch("/api/auth/change-pin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPin: pinForm.current,
+          newPin: pinForm.newPin,
+        }),
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPinError(data.error || "Failed to update PIN");
+        return;
+      }
+      setPinSuccess(true);
+      setTimeout(() => {
+        setPinDialogOpen(false);
+        setPinSuccess(false);
+        setPinForm({ current: "", newPin: "", confirm: "" });
+      }, 1500);
+    } finally {
+      setPinSaving(false);
     }
+  }
 
-    setPinSuccess(true);
-    setTimeout(() => {
-      setPinDialogOpen(false);
-      setPinSuccess(false);
-      setPinForm({ current: "", newPin: "", confirm: "" });
-    }, 1500);
+  async function handleSignOut() {
+    await signOut();
+    router.push("/login");
   }
 
   return (
@@ -83,7 +124,7 @@ export function Sidebar() {
           <Link href="/dashboard" className="flex items-center gap-2 overflow-hidden">
             <Truck className="h-6 w-6 shrink-0 text-primary" />
             <span className="truncate text-lg font-bold text-primary">
-              {fleetName || "Zenan Fleet"}
+              {fleetName}
             </span>
           </Link>
         </div>
@@ -111,9 +152,17 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* Bottom section: Demo toggle + Change PIN */}
+        {/* Bottom section */}
         <div className="border-t p-4 space-y-1">
-          {/* Demo toggle */}
+          {tenant && (
+            <div className="px-3 pb-2 pt-1 text-xs text-muted-foreground">
+              <div className="truncate">Signed in as</div>
+              <div className="truncate font-medium text-foreground">
+                {tenant.email}
+              </div>
+            </div>
+          )}
+
           <button
             onClick={() => setDemoVisible(!demoVisible)}
             className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent/50"
@@ -137,7 +186,6 @@ export function Sidebar() {
             </span>
           </button>
 
-          {/* Change PIN */}
           <button
             onClick={() => {
               setPinForm({ current: "", newPin: "", confirm: "" });
@@ -150,6 +198,14 @@ export function Sidebar() {
             <Lock className="h-4 w-4" />
             Change PIN
           </button>
+
+          <button
+            onClick={handleSignOut}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent/50"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign out
+          </button>
         </div>
       </aside>
 
@@ -160,7 +216,9 @@ export function Sidebar() {
             <DialogTitle>Change PIN</DialogTitle>
           </DialogHeader>
           {pinSuccess ? (
-            <p className="py-4 text-center text-green-600 font-medium">PIN updated successfully</p>
+            <p className="py-4 text-center font-medium text-green-600">
+              PIN updated successfully
+            </p>
           ) : (
             <form onSubmit={handlePinChange} className="space-y-4">
               <div className="space-y-2">
@@ -169,7 +227,9 @@ export function Sidebar() {
                   type="password"
                   inputMode="numeric"
                   value={pinForm.current}
-                  onChange={(e) => setPinForm((p) => ({ ...p, current: e.target.value }))}
+                  onChange={(e) =>
+                    setPinForm((p) => ({ ...p, current: e.target.value }))
+                  }
                   required
                   autoFocus
                 />
@@ -180,7 +240,9 @@ export function Sidebar() {
                   type="password"
                   inputMode="numeric"
                   value={pinForm.newPin}
-                  onChange={(e) => setPinForm((p) => ({ ...p, newPin: e.target.value }))}
+                  onChange={(e) =>
+                    setPinForm((p) => ({ ...p, newPin: e.target.value }))
+                  }
                   required
                 />
               </div>
@@ -190,16 +252,25 @@ export function Sidebar() {
                   type="password"
                   inputMode="numeric"
                   value={pinForm.confirm}
-                  onChange={(e) => setPinForm((p) => ({ ...p, confirm: e.target.value }))}
+                  onChange={(e) =>
+                    setPinForm((p) => ({ ...p, confirm: e.target.value }))
+                  }
                   required
                 />
               </div>
               {pinError && <p className="text-sm text-destructive">{pinError}</p>}
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setPinDialogOpen(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setPinDialogOpen(false)}
+                  disabled={pinSaving}
+                >
                   Cancel
                 </Button>
-                <Button type="submit">Update PIN</Button>
+                <Button type="submit" disabled={pinSaving}>
+                  {pinSaving ? "Updating…" : "Update PIN"}
+                </Button>
               </DialogFooter>
             </form>
           )}

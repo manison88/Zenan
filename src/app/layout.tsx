@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { DemoProvider } from "@/lib/demo-context";
-import { PinProvider } from "@/lib/pin-context";
+import { AuthProvider } from "@/lib/auth-context";
 import { AppShell } from "@/components/layout/app-shell";
 
 const geistSans = Geist({
@@ -28,11 +28,11 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body className="min-h-screen bg-background font-sans antialiased">
-        <PinProvider>
+        <AuthProvider>
           <DemoProvider>
             <AppShell>{children}</AppShell>
           </DemoProvider>
-        </PinProvider>
+        </AuthProvider>
       </body>
     </html>
   );

@@ -2,14 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/db";
 import { fixedCosts } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
+import { requireTenant, isAuthError } from "@/lib/auth/session";
+import { ownTruck } from "@/lib/auth/tenant-scope";
 
 export async function GET(request: NextRequest) {
+  const auth = await requireTenant(request);
+  if (isAuthError(auth)) return auth;
+
   const { searchParams } = new URL(request.url);
   const truckId = searchParams.get("truckId");
 
   if (!truckId) {
     return NextResponse.json({ error: "truckId is required" }, { status: 400 });
   }
+
+  const truck = await ownTruck(auth.tenantId, Number(truckId));
+  if (truck instanceof NextResponse) return truck;
 
   const db = await getDb();
   const result = await db
@@ -18,10 +26,15 @@ export async function GET(request: NextRequest) {
     .where(eq(fixedCosts.truckId, Number(truckId)))
     .get();
 
-  return NextResponse.json(result || { insurance: 0, parking: 0, eld: 0, tolls: 0 });
+  return NextResponse.json(
+    result || { insurance: 0, parking: 0, eld: 0, tolls: 0 }
+  );
 }
 
 export async function PUT(request: NextRequest) {
+  const auth = await requireTenant(request);
+  if (isAuthError(auth)) return auth;
+
   const db = await getDb();
   const body = await request.json();
 
@@ -30,6 +43,9 @@ export async function PUT(request: NextRequest) {
   }
 
   const truckId = Number(body.truckId);
+  const truck = await ownTruck(auth.tenantId, truckId);
+  if (truck instanceof NextResponse) return truck;
+
   const values = {
     truckId,
     insurance: Number(body.insurance) || 0,
@@ -39,7 +55,6 @@ export async function PUT(request: NextRequest) {
     updatedAt: sql`(current_timestamp)`,
   };
 
-  // Upsert: try update, then insert
   const existing = await db
     .select()
     .from(fixedCosts)

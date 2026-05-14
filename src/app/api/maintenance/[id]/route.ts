@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/db";
-import { maintenanceLogs } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { maintenanceLogs, trucks } from "@/db/schema";
+import { and, eq, inArray } from "drizzle-orm";
+import { requireTenant, isAuthError } from "@/lib/auth/session";
 
 function toNumberOrNull(v: unknown): number | null {
   if (v === undefined || v === null || v === "") return null;
@@ -19,6 +20,8 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireTenant(request);
+  if (isAuthError(auth)) return auth;
   const { id } = await params;
   const db = await getDb();
   const body = await request.json();
@@ -26,6 +29,11 @@ export async function PUT(
   if (!body.repairTypeId) {
     return NextResponse.json({ error: "repairTypeId is required" }, { status: 400 });
   }
+
+  const ownedTrucks = db
+    .select({ id: trucks.id })
+    .from(trucks)
+    .where(eq(trucks.tenantId, auth.tenantId));
 
   const result = await db
     .update(maintenanceLogs)
@@ -38,7 +46,12 @@ export async function PUT(
       nextDueDate: toStringOrNull(body.nextDueDate),
       nextDueOdometer: toNumberOrNull(body.nextDueOdometer),
     })
-    .where(eq(maintenanceLogs.id, Number(id)))
+    .where(
+      and(
+        eq(maintenanceLogs.id, Number(id)),
+        inArray(maintenanceLogs.truckId, ownedTrucks)
+      )
+    )
     .returning();
 
   if (result.length === 0) {
@@ -48,11 +61,31 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireTenant(request);
+  if (isAuthError(auth)) return auth;
   const { id } = await params;
   const db = await getDb();
-  await db.delete(maintenanceLogs).where(eq(maintenanceLogs.id, Number(id)));
+
+  const ownedTrucks = db
+    .select({ id: trucks.id })
+    .from(trucks)
+    .where(eq(trucks.tenantId, auth.tenantId));
+
+  const result = await db
+    .delete(maintenanceLogs)
+    .where(
+      and(
+        eq(maintenanceLogs.id, Number(id)),
+        inArray(maintenanceLogs.truckId, ownedTrucks)
+      )
+    )
+    .returning();
+
+  if (result.length === 0) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   return NextResponse.json({ success: true });
 }

@@ -1,15 +1,58 @@
 import { sqliteTable, text, integer, real, uniqueIndex, index } from "drizzle-orm/sqlite-core";
 import { relations, sql } from "drizzle-orm";
 
-// ── Trucks ──────────────────────────────────────────────────────────────────
-export const trucks = sqliteTable("trucks", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  truckNumber: text("truck_number").notNull().unique(),
-  isDemo: integer("is_demo").notNull().default(0),
+// ── Tenants ────────────────────────────────────────────────────────────────
+export const tenants = sqliteTable("tenants", {
+  id: text("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  pinHash: text("pin_hash").notNull(),
+  fleetName: text("fleet_name").notNull(),
   createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
 });
 
+export const tenantsRelations = relations(tenants, ({ many }) => ({
+  trucks: many(trucks),
+  sessions: many(sessions),
+}));
+
+// ── Sessions ───────────────────────────────────────────────────────────────
+export const sessions = sqliteTable(
+  "sessions",
+  {
+    id: text("id").primaryKey(),
+    tenantId: text("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    expiresAt: text("expires_at").notNull(),
+    createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
+  },
+  (table) => [index("sessions_tenant_idx").on(table.tenantId)]
+);
+
+export const sessionsRelations = relations(sessions, ({ one }) => ({
+  tenant: one(tenants, { fields: [sessions.tenantId], references: [tenants.id] }),
+}));
+
+// ── Trucks ──────────────────────────────────────────────────────────────────
+export const trucks = sqliteTable(
+  "trucks",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    tenantId: text("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    truckNumber: text("truck_number").notNull(),
+    isDemo: integer("is_demo").notNull().default(0),
+    createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
+  },
+  (table) => [
+    uniqueIndex("trucks_tenant_number_idx").on(table.tenantId, table.truckNumber),
+    index("trucks_tenant_idx").on(table.tenantId),
+  ]
+);
+
 export const trucksRelations = relations(trucks, ({ many, one }) => ({
+  tenant: one(tenants, { fields: [trucks.tenantId], references: [tenants.id] }),
   odometerLogs: many(odometerLogs),
   trips: many(trips),
   fuelLogs: many(fuelLogs),

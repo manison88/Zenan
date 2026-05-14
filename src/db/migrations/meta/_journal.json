@@ -29,6 +29,13 @@
       "when": 1778798093419,
       "tag": "0003_add_maintenance_logs",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1778798807075,
+      "tag": "0004_add_tenancy",
+      "breakpoints": true
     }
   ]
 }

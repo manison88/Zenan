@@ -1,12 +1,13 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-import { usePin } from "@/lib/pin-context";
-import { PinScreen } from "@/components/layout/pin-screen";
+import { useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 import { Sidebar } from "@/components/layout/sidebar";
 
 function isPublicPath(pathname: string) {
   if (pathname === "/") return true;
+  if (pathname === "/login") return true;
   if (pathname === "/onboarding") return true;
   if (pathname.startsWith("/onboarding/")) return true;
   return false;
@@ -14,14 +15,27 @@ function isPublicPath(pathname: string) {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { isUnlocked } = usePin();
+  const router = useRouter();
+  const { status } = useAuth();
+  const isPublic = isPublicPath(pathname);
 
-  if (isPublicPath(pathname)) {
+  useEffect(() => {
+    if (isPublic) return;
+    if (status === "unauthenticated") {
+      router.replace("/login");
+    }
+  }, [isPublic, status, router]);
+
+  if (isPublic) {
     return <>{children}</>;
   }
 
-  if (!isUnlocked) {
-    return <PinScreen />;
+  if (status !== "authenticated") {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
   }
 
   return (
