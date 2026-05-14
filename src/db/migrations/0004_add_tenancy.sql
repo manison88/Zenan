@@ -1,4 +1,4 @@
-CREATE TABLE `tenants` (
+CREATE TABLE IF NOT EXISTS `tenants` (
 	`id` text PRIMARY KEY NOT NULL,
 	`email` text NOT NULL,
 	`pin_hash` text NOT NULL,
@@ -6,9 +6,9 @@ CREATE TABLE `tenants` (
 	`created_at` text DEFAULT (current_timestamp) NOT NULL
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `tenants_email_unique` ON `tenants` (`email`);
+CREATE UNIQUE INDEX IF NOT EXISTS `tenants_email_unique` ON `tenants` (`email`);
 --> statement-breakpoint
-CREATE TABLE `sessions` (
+CREATE TABLE IF NOT EXISTS `sessions` (
 	`id` text PRIMARY KEY NOT NULL,
 	`tenant_id` text NOT NULL,
 	`expires_at` text NOT NULL,
@@ -16,9 +16,9 @@ CREATE TABLE `sessions` (
 	FOREIGN KEY (`tenant_id`) REFERENCES `tenants`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE INDEX `sessions_tenant_idx` ON `sessions` (`tenant_id`);
+CREATE INDEX IF NOT EXISTS `sessions_tenant_idx` ON `sessions` (`tenant_id`);
 --> statement-breakpoint
-INSERT INTO `tenants` (`id`, `email`, `pin_hash`, `fleet_name`)
+INSERT OR IGNORE INTO `tenants` (`id`, `email`, `pin_hash`, `fleet_name`)
 VALUES (
 	'tenant_default_001',
 	'owner@migrated.local',
@@ -28,8 +28,8 @@ VALUES (
 --> statement-breakpoint
 DROP INDEX IF EXISTS `trucks_truck_number_unique`;
 --> statement-breakpoint
-ALTER TABLE `trucks` ADD COLUMN `tenant_id` text NOT NULL DEFAULT 'tenant_default_001' REFERENCES `tenants`(`id`) ON DELETE CASCADE;
+ALTER TABLE `trucks` ADD COLUMN `tenant_id` text NOT NULL DEFAULT 'tenant_default_001';
 --> statement-breakpoint
-CREATE UNIQUE INDEX `trucks_tenant_number_idx` ON `trucks` (`tenant_id`,`truck_number`);
+CREATE UNIQUE INDEX IF NOT EXISTS `trucks_tenant_number_idx` ON `trucks` (`tenant_id`,`truck_number`);
 --> statement-breakpoint
-CREATE INDEX `trucks_tenant_idx` ON `trucks` (`tenant_id`);
+CREATE INDEX IF NOT EXISTS `trucks_tenant_idx` ON `trucks` (`tenant_id`);
