@@ -2,11 +2,27 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { DataList, DataListCard, DataListSkeleton } from "@/components/shared/data-list";
+import { OverflowMenu } from "@/components/ui/overflow-menu";
+import { ConfirmSheet } from "@/components/ui/confirm-sheet";
 import { DollarSign, Plus, Pencil, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/date-utils";
 
@@ -28,6 +44,7 @@ export default function FixedCostsPage() {
   const [showAddCustom, setShowAddCustom] = useState(false);
   const [customForm, setCustomForm] = useState({ name: "", amount: "" });
   const [editingCustom, setEditingCustom] = useState<CustomCost | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -75,7 +92,10 @@ export default function FixedCostsPage() {
       const res = await fetch(`/api/custom-fixed-costs/${editingCustom.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: customForm.name, amount: Number(customForm.amount) }),
+        body: JSON.stringify({
+          name: customForm.name,
+          amount: Number(customForm.amount),
+        }),
       });
       const updated = await res.json();
       setCustomCosts(customCosts.map((c) => (c.id === editingCustom.id ? updated : c)));
@@ -83,7 +103,11 @@ export default function FixedCostsPage() {
       const res = await fetch("/api/custom-fixed-costs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ truckId: Number(truckId), name: customForm.name, amount: Number(customForm.amount) }),
+        body: JSON.stringify({
+          truckId: Number(truckId),
+          name: customForm.name,
+          amount: Number(customForm.amount),
+        }),
       });
       const created = await res.json();
       setCustomCosts([...customCosts, created]);
@@ -101,13 +125,8 @@ export default function FixedCostsPage() {
   }
 
   async function handleDeleteCustom(id: number) {
-    if (!confirm("Delete this custom cost?")) return;
     await fetch(`/api/custom-fixed-costs/${id}`, { method: "DELETE" });
     setCustomCosts(customCosts.filter((c) => c.id !== id));
-  }
-
-  if (loading) {
-    return <div className="flex justify-center py-12"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
   }
 
   const fields = [
@@ -121,7 +140,6 @@ export default function FixedCostsPage() {
     <div className="max-w-lg space-y-6">
       <h2 className="text-lg font-semibold">Monthly Fixed Costs</h2>
 
-      {/* Standard fixed costs */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -133,39 +151,49 @@ export default function FixedCostsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {fields.map(({ key, label, desc }) => (
-              <div key={key} className="space-y-1">
-                <Label htmlFor={key}>{label}</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                  <Input
-                    id={key}
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={form[key as keyof typeof form]}
-                    onChange={(e) => setForm((prev) => ({ ...prev, [key]: e.target.value }))}
-                    className="pl-7"
-                  />
+          {loading ? (
+            <DataListSkeleton rows={4} />
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {fields.map(({ key, label, desc }) => (
+                <div key={key} className="space-y-1">
+                  <Label htmlFor={key}>{label}</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                      $
+                    </span>
+                    <Input
+                      id={key}
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      min="0"
+                      value={form[key as keyof typeof form]}
+                      onChange={(e) =>
+                        setForm((prev) => ({ ...prev, [key]: e.target.value }))
+                      }
+                      className="pl-7"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">{desc}</p>
                 </div>
-                <p className="text-xs text-muted-foreground">{desc}</p>
+              ))}
+              <div className="flex items-center gap-3 pt-2">
+                <Button type="submit" disabled={saving}>
+                  {saving ? "Saving..." : "Save"}
+                </Button>
+                {saved && (
+                  <span className="text-sm text-green-600">Saved successfully</span>
+                )}
               </div>
-            ))}
-            <div className="flex items-center gap-3 pt-2">
-              <Button type="submit" disabled={saving}>
-                {saving ? "Saving..." : "Save"}
-              </Button>
-              {saved && <span className="text-sm text-green-600">Saved successfully</span>}
-            </div>
-          </form>
+            </form>
+          )}
         </CardContent>
       </Card>
 
-      {/* Custom fixed costs */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
+          <CardTitle className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <span>Custom Costs</span>
             <Button
               size="sm"
@@ -175,83 +203,155 @@ export default function FixedCostsPage() {
                 setCustomForm({ name: "", amount: "" });
                 setShowAddCustom(!showAddCustom);
               }}
+              className="self-start sm:self-auto"
             >
               <Plus className="h-4 w-4" /> Add Custom
             </Button>
           </CardTitle>
-          <CardDescription>
-            Add any other recurring monthly expenses
-          </CardDescription>
+          <CardDescription>Add any other recurring monthly expenses</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {showAddCustom && (
-            <form onSubmit={handleAddCustom} className="flex gap-2 items-end">
-              <div className="flex-1 space-y-1">
-                <Label className="text-xs">Name</Label>
-                <Input
-                  placeholder="e.g. Truck Payment"
-                  value={customForm.name}
-                  onChange={(e) => setCustomForm((p) => ({ ...p, name: e.target.value }))}
-                  required
-                />
+            <form
+              onSubmit={handleAddCustom}
+              className="space-y-3 rounded-lg border bg-muted/30 p-3"
+            >
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Name</Label>
+                  <Input
+                    placeholder="e.g. Truck Payment"
+                    value={customForm.name}
+                    onChange={(e) =>
+                      setCustomForm((p) => ({ ...p, name: e.target.value }))
+                    }
+                    required
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Monthly $</Label>
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={customForm.amount}
+                    onChange={(e) =>
+                      setCustomForm((p) => ({ ...p, amount: e.target.value }))
+                    }
+                    required
+                  />
+                </div>
               </div>
-              <div className="w-32 space-y-1">
-                <Label className="text-xs">Monthly $</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  value={customForm.amount}
-                  onChange={(e) => setCustomForm((p) => ({ ...p, amount: e.target.value }))}
-                  required
-                />
+              <div className="flex gap-2">
+                <Button type="submit" size="sm">
+                  {editingCustom ? "Update" : "Add"}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setShowAddCustom(false);
+                    setEditingCustom(null);
+                  }}
+                >
+                  Cancel
+                </Button>
               </div>
-              <Button type="submit" size="sm">{editingCustom ? "Update" : "Add"}</Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => { setShowAddCustom(false); setEditingCustom(null); }}
-              >
-                Cancel
-              </Button>
             </form>
           )}
 
-          {customCosts.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead className="text-right">Monthly Amount</TableHead>
-                  <TableHead className="w-[80px]" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {customCosts.map((cost) => (
-                  <TableRow key={cost.id}>
-                    <TableCell>{cost.name}</TableCell>
-                    <TableCell className="text-right font-medium">{formatCurrency(cost.amount)}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <button onClick={() => startEditCustom(cost)} className="rounded p-1 hover:bg-accent"><Pencil className="h-3.5 w-3.5" /></button>
-                        <button onClick={() => handleDeleteCustom(cost.id)} className="rounded p-1 hover:bg-destructive/10 text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          {loading ? null : customCosts.length > 0 ? (
+            <DataList
+              items={customCosts}
+              getKey={(c) => c.id}
+              renderCard={(cost) => (
+                <DataListCard
+                  primary={cost.name}
+                  trailing={formatCurrency(cost.amount)}
+                  actions={
+                    <OverflowMenu
+                      actions={[
+                        {
+                          label: "Edit",
+                          icon: <Pencil className="h-4 w-4" />,
+                          onClick: () => startEditCustom(cost),
+                        },
+                        {
+                          label: "Delete",
+                          icon: <Trash2 className="h-4 w-4" />,
+                          destructive: true,
+                          onClick: () => setConfirmDeleteId(cost.id),
+                        },
+                      ]}
+                    />
+                  }
+                />
+              )}
+              renderTable={() => (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead className="text-right">Monthly Amount</TableHead>
+                      <TableHead className="w-[80px]" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {customCosts.map((cost) => (
+                      <TableRow key={cost.id}>
+                        <TableCell>{cost.name}</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(cost.amount)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => startEditCustom(cost)}
+                              className="rounded p-1 hover:bg-accent"
+                              aria-label="Edit"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setConfirmDeleteId(cost.id)}
+                              className="rounded p-1 hover:bg-destructive/10 text-destructive"
+                              aria-label="Delete"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            />
           ) : (
             !showAddCustom && (
               <p className="text-sm text-muted-foreground text-center py-4">
-                No custom costs yet. Click &quot;Add Custom&quot; to add one.
+                No custom costs yet. Tap &quot;Add Custom&quot; to add one.
               </p>
             )
           )}
         </CardContent>
       </Card>
+
+      <ConfirmSheet
+        open={confirmDeleteId !== null}
+        onOpenChange={(open) => !open && setConfirmDeleteId(null)}
+        title="Delete custom cost?"
+        description="This cannot be undone."
+        confirmLabel="Delete"
+        destructive
+        onConfirm={() => {
+          if (confirmDeleteId !== null) handleDeleteCustom(confirmDeleteId);
+          setConfirmDeleteId(null);
+        }}
+      />
     </div>
   );
 }

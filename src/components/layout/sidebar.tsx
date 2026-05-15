@@ -5,27 +5,48 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useDemo } from "@/lib/demo-context";
 import { usePin } from "@/lib/pin-context";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogBody,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LayoutDashboard, Truck, Menu, X, Eye, EyeOff, Lock } from "lucide-react";
-import { useState } from "react";
+import { LayoutDashboard, Truck, X, Eye, EyeOff, Lock } from "lucide-react";
+import { useEffect, useState } from "react";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/trucks", label: "Trucks", icon: Truck },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  mobileOpen: boolean;
+  onMobileClose: () => void;
+}
+
+export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
-  const [mobileOpen, setMobileOpen] = useState(false);
   const { demoVisible, setDemoVisible } = useDemo();
   const { updatePin } = usePin();
   const [pinDialogOpen, setPinDialogOpen] = useState(false);
   const [pinForm, setPinForm] = useState({ current: "", newPin: "", confirm: "" });
   const [pinError, setPinError] = useState("");
   const [pinSuccess, setPinSuccess] = useState(false);
+
+  useEffect(() => {
+    if (mobileOpen) {
+      const original = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = original;
+      };
+    }
+  }, [mobileOpen]);
 
   function handlePinChange(e: React.FormEvent) {
     e.preventDefault();
@@ -56,37 +77,39 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Mobile toggle */}
-      <button
-        onClick={() => setMobileOpen(!mobileOpen)}
-        className="fixed top-4 left-4 z-50 rounded-md border bg-background p-2 shadow-sm md:hidden"
-      >
-        {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-      </button>
-
-      {/* Overlay */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/50 md:hidden"
-          onClick={() => setMobileOpen(false)}
+          className="fixed inset-0 z-40 bg-black/50 animate-fade-in md:hidden"
+          onClick={onMobileClose}
         />
       )}
 
-      {/* Sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r bg-sidebar transition-transform md:static md:translate-x-0",
+          "fixed inset-y-0 left-0 z-50 flex w-[85vw] max-w-[320px] flex-col border-r bg-sidebar transition-transform duration-200 md:static md:z-auto md:w-64 md:translate-x-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex h-16 items-center border-b px-6">
-          <Link href="/dashboard" className="flex items-center gap-2">
+        <div className="flex h-16 items-center justify-between border-b px-4">
+          <Link
+            href="/dashboard"
+            onClick={onMobileClose}
+            className="flex items-center gap-2"
+          >
             <Truck className="h-6 w-6 text-primary" />
             <span className="text-lg font-bold text-primary">Zenan Fleet</span>
           </Link>
+          <button
+            type="button"
+            onClick={onMobileClose}
+            aria-label="Close menu"
+            className="flex h-10 w-10 items-center justify-center rounded-md hover:bg-accent md:hidden"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
 
-        <nav className="flex-1 space-y-1 p-4">
+        <nav className="flex-1 space-y-1 p-4 overflow-y-auto">
           {navItems.map((item) => {
             const isActive =
               pathname === item.href || pathname.startsWith(item.href + "/");
@@ -94,9 +117,9 @@ export function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
-                onClick={() => setMobileOpen(false)}
+                onClick={onMobileClose}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                  "flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors",
                   isActive
                     ? "bg-sidebar-accent text-sidebar-accent-foreground"
                     : "text-sidebar-foreground hover:bg-sidebar-accent/50"
@@ -109,12 +132,10 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* Bottom section: Demo toggle + Change PIN */}
-        <div className="border-t p-4 space-y-1">
-          {/* Demo toggle */}
+        <div className="border-t p-4 space-y-1 safe-bottom">
           <button
             onClick={() => setDemoVisible(!demoVisible)}
-            className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent/50"
+            className="flex w-full items-center justify-between rounded-lg px-3 py-3 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent/50"
           >
             <span className="flex items-center gap-3">
               {demoVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
@@ -135,7 +156,6 @@ export function Sidebar() {
             </span>
           </button>
 
-          {/* Change PIN */}
           <button
             onClick={() => {
               setPinForm({ current: "", newPin: "", confirm: "" });
@@ -143,7 +163,7 @@ export function Sidebar() {
               setPinSuccess(false);
               setPinDialogOpen(true);
             }}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent/50"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent/50"
           >
             <Lock className="h-4 w-4" />
             Change PIN
@@ -151,50 +171,65 @@ export function Sidebar() {
         </div>
       </aside>
 
-      {/* Change PIN dialog */}
       <Dialog open={pinDialogOpen} onOpenChange={setPinDialogOpen}>
         <DialogContent onClose={() => setPinDialogOpen(false)}>
           <DialogHeader>
             <DialogTitle>Change PIN</DialogTitle>
           </DialogHeader>
           {pinSuccess ? (
-            <p className="py-4 text-center text-green-600 font-medium">PIN updated successfully</p>
+            <DialogBody>
+              <p className="py-4 text-center text-green-600 font-medium">
+                PIN updated successfully
+              </p>
+            </DialogBody>
           ) : (
-            <form onSubmit={handlePinChange} className="space-y-4">
-              <div className="space-y-2">
-                <Label>Current PIN</Label>
-                <Input
-                  type="password"
-                  inputMode="numeric"
-                  value={pinForm.current}
-                  onChange={(e) => setPinForm((p) => ({ ...p, current: e.target.value }))}
-                  required
-                  autoFocus
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>New PIN</Label>
-                <Input
-                  type="password"
-                  inputMode="numeric"
-                  value={pinForm.newPin}
-                  onChange={(e) => setPinForm((p) => ({ ...p, newPin: e.target.value }))}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Confirm New PIN</Label>
-                <Input
-                  type="password"
-                  inputMode="numeric"
-                  value={pinForm.confirm}
-                  onChange={(e) => setPinForm((p) => ({ ...p, confirm: e.target.value }))}
-                  required
-                />
-              </div>
-              {pinError && <p className="text-sm text-destructive">{pinError}</p>}
+            <form onSubmit={handlePinChange} className="flex flex-1 flex-col min-h-0">
+              <DialogBody className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Current PIN</Label>
+                  <Input
+                    type="password"
+                    inputMode="numeric"
+                    value={pinForm.current}
+                    onChange={(e) =>
+                      setPinForm((p) => ({ ...p, current: e.target.value }))
+                    }
+                    required
+                    autoFocus
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>New PIN</Label>
+                  <Input
+                    type="password"
+                    inputMode="numeric"
+                    value={pinForm.newPin}
+                    onChange={(e) =>
+                      setPinForm((p) => ({ ...p, newPin: e.target.value }))
+                    }
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Confirm New PIN</Label>
+                  <Input
+                    type="password"
+                    inputMode="numeric"
+                    value={pinForm.confirm}
+                    onChange={(e) =>
+                      setPinForm((p) => ({ ...p, confirm: e.target.value }))
+                    }
+                    required
+                  />
+                </div>
+                {pinError && <p className="text-sm text-destructive">{pinError}</p>}
+              </DialogBody>
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setPinDialogOpen(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setPinDialogOpen(false)}
+                >
                   Cancel
                 </Button>
                 <Button type="submit">Update PIN</Button>

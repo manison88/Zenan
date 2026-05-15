@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageHeader } from "@/components/layout/page-header";
 
 export default function NewTruckPage() {
   const router = useRouter();
@@ -46,7 +47,8 @@ export default function NewTruckPage() {
 
   return (
     <div className="mx-auto max-w-md">
-      <h1 className="mb-6 text-2xl font-bold">Add New Truck</h1>
+      <PageHeader title="Add New Truck" />
+      <h1 className="mb-4 text-xl font-bold md:hidden">Add New Truck</h1>
       <Card>
         <CardHeader>
           <CardTitle>Truck Details</CardTitle>
@@ -57,6 +59,7 @@ export default function NewTruckPage() {
               <Label htmlFor="truckNumber">Truck Number</Label>
               <Input
                 id="truckNumber"
+                inputMode="numeric"
                 placeholder="e.g. 101"
                 value={truckNumber}
                 onChange={(e) => setTruckNumber(e.target.value)}
@@ -64,12 +67,17 @@ export default function NewTruckPage() {
               />
               {error && <p className="text-sm text-destructive">{error}</p>}
             </div>
-            <div className="flex gap-3">
-              <Button type="submit" disabled={saving}>
-                {saving ? "Creating..." : "Create Truck"}
-              </Button>
-              <Button type="button" variant="outline" onClick={() => router.back()}>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.back()}
+                className="sm:order-1"
+              >
                 Cancel
+              </Button>
+              <Button type="submit" disabled={saving} className="sm:order-2">
+                {saving ? "Creating..." : "Create Truck"}
               </Button>
             </div>
           </form>

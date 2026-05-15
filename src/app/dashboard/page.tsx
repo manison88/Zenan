@@ -4,18 +4,49 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { DataListSkeleton } from "@/components/shared/data-list";
 import { DateRangePicker } from "@/components/dashboard/date-range-picker";
 import { EmptyState } from "@/components/shared/empty-state";
+import { OverflowMenu } from "@/components/ui/overflow-menu";
+import { PageHeader } from "@/components/layout/page-header";
 import { useDemo } from "@/lib/demo-context";
-import { type DateRange, getPresetRange, formatCurrency } from "@/lib/date-utils";
 import {
-  DollarSign, TrendingUp, TrendingDown, Truck, Fuel, Wrench, Shield,
-  ParkingCircle, Radio, CircleDollarSign, Download
+  type DateRange,
+  getPresetRange,
+  formatCurrency,
+  formatCurrencyCompact,
+} from "@/lib/date-utils";
+import {
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  Truck,
+  Fuel,
+  Wrench,
+  Shield,
+  ParkingCircle,
+  Radio,
+  CircleDollarSign,
+  Download,
+  ChevronRight,
 } from "lucide-react";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
-  PieChart, Pie, Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
 } from "recharts";
 
 interface TruckSummary {
@@ -52,8 +83,6 @@ interface FleetData {
   months: number;
 }
 
-const PIE_COLORS = ["#ef4444", "#f97316", "#3b82f6", "#8b5cf6", "#06b6d4", "#10b981"];
-
 export default function DashboardPage() {
   const [dateRange, setDateRange] = useState<DateRange>(getPresetRange("this-month"));
   const [data, setData] = useState<FleetData | null>(null);
@@ -70,16 +99,51 @@ export default function DashboardPage() {
     setLoading(false);
   }, [dateRange, demoVisible]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   function exportCSV() {
     if (!data) return;
-    const headers = ["Truck #", "Gross Pay", "Fuel", "Repairs", "Insurance", "Parking", "ELD", "Tolls", "Total Deductions", "Net Pay"];
+    const headers = [
+      "Truck #",
+      "Gross Pay",
+      "Fuel",
+      "Repairs",
+      "Insurance",
+      "Parking",
+      "ELD",
+      "Tolls",
+      "Total Deductions",
+      "Net Pay",
+    ];
     const rows = data.trucks.map((t) =>
-      [t.truckNumber, t.grossPay, t.fuelTotal, t.repairsTotal, t.insurance, t.parking, t.eld, t.tolls, t.totalDeductions, t.netPay].join(",")
+      [
+        t.truckNumber,
+        t.grossPay,
+        t.fuelTotal,
+        t.repairsTotal,
+        t.insurance,
+        t.parking,
+        t.eld,
+        t.tolls,
+        t.totalDeductions,
+        t.netPay,
+      ].join(",")
     );
     rows.push(
-      ["TOTAL", data.totals.grossPay, data.totals.fuelTotal, data.totals.repairsTotal, data.totals.insurance, data.totals.parking, data.totals.eld, data.totals.tolls, data.totals.totalDeductions, data.totals.netPay].join(",")
+      [
+        "TOTAL",
+        data.totals.grossPay,
+        data.totals.fuelTotal,
+        data.totals.repairsTotal,
+        data.totals.insurance,
+        data.totals.parking,
+        data.totals.eld,
+        data.totals.tolls,
+        data.totals.totalDeductions,
+        data.totals.netPay,
+      ].join(",")
     );
     const csv = [headers.join(","), ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
@@ -102,16 +166,27 @@ export default function DashboardPage() {
     doc.setFontSize(10);
     doc.text(`Period: ${dateRange.from} to ${dateRange.to}`, 14, 30);
 
-    // Summary totals
     doc.setFontSize(12);
     doc.text(`Gross Pay: ${formatCurrency(data.totals.grossPay)}`, 14, 42);
     doc.text(`Total Deductions: ${formatCurrency(data.totals.totalDeductions)}`, 14, 50);
     doc.text(`Net Pay: ${formatCurrency(data.totals.netPay)}`, 14, 58);
 
-    // Table
     autoTable(doc, {
       startY: 68,
-      head: [["Truck #", "Gross", "Fuel", "Repairs", "Insurance", "Parking", "ELD", "Tolls", "Deductions", "Net Pay"]],
+      head: [
+        [
+          "Truck #",
+          "Gross",
+          "Fuel",
+          "Repairs",
+          "Insurance",
+          "Parking",
+          "ELD",
+          "Tolls",
+          "Deductions",
+          "Net Pay",
+        ],
+      ],
       body: [
         ...data.trucks.map((t) => [
           t.truckNumber,
@@ -145,11 +220,42 @@ export default function DashboardPage() {
     doc.save(`fleet-summary-${dateRange.from}-to-${dateRange.to}.pdf`);
   }
 
+  const exportMenu = (
+    <OverflowMenu
+      label="Export"
+      actions={[
+        {
+          label: "Export CSV",
+          icon: <Download className="h-4 w-4" />,
+          onClick: exportCSV,
+        },
+        {
+          label: "Export PDF",
+          icon: <Download className="h-4 w-4" />,
+          onClick: exportPDF,
+        },
+      ]}
+    />
+  );
+
+  const desktopExportButtons = (
+    <>
+      <Button variant="outline" size="sm" onClick={exportCSV}>
+        <Download className="h-4 w-4" /> CSV
+      </Button>
+      <Button variant="outline" size="sm" onClick={exportPDF}>
+        <Download className="h-4 w-4" /> PDF
+      </Button>
+    </>
+  );
+
   if (loading) {
     return (
       <div>
-        <h1 className="mb-6 text-2xl font-bold">Fleet Dashboard</h1>
-        <div className="flex justify-center py-12"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>
+        <PageHeader title="Fleet Dashboard" />
+        <h1 className="mb-4 text-xl font-bold md:hidden">Fleet Dashboard</h1>
+        <DateRangePicker value={dateRange} onChange={setDateRange} className="mb-6" />
+        <DataListSkeleton rows={3} />
       </div>
     );
   }
@@ -157,12 +263,19 @@ export default function DashboardPage() {
   if (!data || data.trucks.length === 0) {
     return (
       <div>
-        <h1 className="mb-6 text-2xl font-bold">Fleet Dashboard</h1>
+        <PageHeader title="Fleet Dashboard" />
+        <h1 className="mb-4 text-xl font-bold md:hidden">Fleet Dashboard</h1>
         <EmptyState
           icon={<Truck className="h-12 w-12" />}
           title="No trucks yet"
           description="Add trucks and log data to see your fleet summary"
-          action={<Link href="/trucks/new"><Button><Truck className="h-4 w-4" /> Add Truck</Button></Link>}
+          action={
+            <Link href="/trucks/new">
+              <Button>
+                <Truck className="h-4 w-4" /> Add Truck
+              </Button>
+            </Link>
+          }
         />
       </div>
     );
@@ -170,7 +283,6 @@ export default function DashboardPage() {
 
   const { totals } = data;
 
-  // Prepare chart data
   const barData = data.trucks.map((t) => ({
     name: `#${t.truckNumber}`,
     gross: t.grossPay,
@@ -178,75 +290,78 @@ export default function DashboardPage() {
     net: t.netPay,
   }));
 
-  const pieData = [
-    { name: "Fuel", value: totals.fuelTotal },
-    { name: "Repairs", value: totals.repairsTotal },
-    { name: "Insurance", value: totals.insurance },
-    { name: "Parking", value: totals.parking },
-    { name: "ELD", value: totals.eld },
-    { name: "Tolls", value: totals.tolls },
-    { name: "Other", value: totals.customFixedTotal },
+  const expenseRows = [
+    { name: "Fuel", value: totals.fuelTotal, icon: Fuel, color: "text-red-500" },
+    { name: "Repairs", value: totals.repairsTotal, icon: Wrench, color: "text-orange-500" },
+    { name: "Insurance", value: totals.insurance, icon: Shield, color: "text-blue-500" },
+    { name: "Parking", value: totals.parking, icon: ParkingCircle, color: "text-purple-500" },
+    { name: "ELD", value: totals.eld, icon: Radio, color: "text-cyan-500" },
+    { name: "Tolls", value: totals.tolls, icon: CircleDollarSign, color: "text-green-500" },
+    { name: "Other", value: totals.customFixedTotal, icon: DollarSign, color: "text-amber-500" },
   ].filter((d) => d.value > 0);
+
+  const expenseTotal = expenseRows.reduce((s, r) => s + r.value, 0);
 
   return (
     <div>
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <h1 className="text-2xl font-bold">Fleet Dashboard</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={exportCSV}>
-            <Download className="h-4 w-4" /> CSV
-          </Button>
-          <Button variant="outline" size="sm" onClick={exportPDF}>
-            <Download className="h-4 w-4" /> PDF
-          </Button>
-        </div>
+      <PageHeader title="Fleet Dashboard" actions={desktopExportButtons} />
+
+      {/* Mobile title bar */}
+      <div className="mb-4 flex items-center justify-between md:hidden">
+        <h1 className="text-xl font-bold">Fleet Dashboard</h1>
+        {exportMenu}
       </div>
 
       <DateRangePicker value={dateRange} onChange={setDateRange} className="mb-6" />
 
       {/* Summary cards */}
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <TrendingUp className="h-5 w-5 text-green-600" /> Gross Pay
-            </div>
-            <p className="mt-2 text-2xl font-bold text-green-700">{formatCurrency(totals.grossPay)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <TrendingDown className="h-5 w-5 text-red-500" /> Total Deductions
-            </div>
-            <p className="mt-2 text-2xl font-bold text-red-600">{formatCurrency(totals.totalDeductions)}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-2 border-primary/20">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <DollarSign className="h-5 w-5 text-blue-600" /> Net Pay
-            </div>
-            <p className={`mt-2 text-2xl font-bold ${totals.netPay >= 0 ? "text-green-700" : "text-red-600"}`}>
-              {formatCurrency(totals.netPay)}
-            </p>
-          </CardContent>
-        </Card>
+      <div className="mb-6 grid gap-3 grid-cols-3">
+        <SummaryStat
+          icon={<TrendingUp className="h-4 w-4 text-green-600 sm:h-5 sm:w-5" />}
+          label="Gross"
+          value={totals.grossPay}
+          tone="positive"
+        />
+        <SummaryStat
+          icon={<TrendingDown className="h-4 w-4 text-red-500 sm:h-5 sm:w-5" />}
+          label="Deductions"
+          value={totals.totalDeductions}
+          tone="negative"
+        />
+        <SummaryStat
+          icon={<DollarSign className="h-4 w-4 text-blue-600 sm:h-5 sm:w-5" />}
+          label="Net Pay"
+          value={totals.netPay}
+          tone={totals.netPay >= 0 ? "positive" : "negative"}
+          highlight
+        />
       </div>
 
       {/* Charts */}
-      <div className="mb-6 grid gap-6 lg:grid-cols-2">
-        {/* Revenue bar chart */}
+      <div className="mb-6 grid gap-4 lg:grid-cols-2">
         <Card>
-          <CardHeader><CardTitle className="text-base">Revenue by Truck</CardTitle></CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={barData}>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Revenue by Truck</CardTitle>
+          </CardHeader>
+          <CardContent className="px-2 sm:px-6">
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={barData} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" fontSize={12} />
-                <YAxis fontSize={12} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                <XAxis
+                  dataKey="name"
+                  fontSize={11}
+                  interval={0}
+                  angle={barData.length > 5 ? -45 : 0}
+                  textAnchor={barData.length > 5 ? "end" : "middle"}
+                  height={barData.length > 5 ? 50 : 25}
+                />
+                <YAxis
+                  fontSize={11}
+                  tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+                  width={50}
+                />
                 <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                <Legend />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
                 <Bar dataKey="gross" name="Gross" fill="#22c55e" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="deductions" name="Deductions" fill="#ef4444" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="net" name="Net" fill="#3b82f6" radius={[4, 4, 0, 0]} />
@@ -255,94 +370,237 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Expense breakdown pie */}
         <Card>
-          <CardHeader><CardTitle className="text-base">Expense Breakdown</CardTitle></CardHeader>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Expense Breakdown</CardTitle>
+          </CardHeader>
           <CardContent>
-            {pieData.length === 0 ? (
-              <div className="flex h-[300px] items-center justify-center text-muted-foreground">No expenses in this period</div>
+            {expenseRows.length === 0 ? (
+              <div className="flex h-[200px] items-center justify-center text-muted-foreground">
+                No expenses in this period
+              </div>
             ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie data={pieData} cx="50%" cy="50%" outerRadius={100} dataKey="value" label={(props: any) => `${props.name ?? ""} ${((props.percent || 0) * 100).toFixed(0)}%`}>
-                    {pieData.map((_, i) => (
-                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                </PieChart>
-              </ResponsiveContainer>
+              <div className="space-y-3">
+                {expenseRows.map((row) => {
+                  const pct = expenseTotal > 0 ? (row.value / expenseTotal) * 100 : 0;
+                  const Icon = row.icon;
+                  return (
+                    <div key={row.name}>
+                      <div className="flex items-center justify-between gap-2 text-sm">
+                        <span className="flex items-center gap-2 min-w-0">
+                          <Icon className={`h-4 w-4 shrink-0 ${row.color}`} />
+                          <span className="truncate">{row.name}</span>
+                        </span>
+                        <span className="shrink-0 tabular-nums">
+                          {formatCurrency(row.value)}{" "}
+                          <span className="text-muted-foreground text-xs">
+                            ({pct.toFixed(0)}%)
+                          </span>
+                        </span>
+                      </div>
+                      <div className="mt-1 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full bg-primary transition-all"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Deduction detail */}
-      <Card className="mb-6">
-        <CardHeader><CardTitle className="text-base">Deductions Summary</CardTitle></CardHeader>
-        <CardContent>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="flex items-center gap-2"><Fuel className="h-4 w-4 text-red-500" /><span className="text-sm">Fuel:</span><span className="font-medium">{formatCurrency(totals.fuelTotal)}</span></div>
-            <div className="flex items-center gap-2"><Wrench className="h-4 w-4 text-orange-500" /><span className="text-sm">Repairs:</span><span className="font-medium">{formatCurrency(totals.repairsTotal)}</span></div>
-            <div className="flex items-center gap-2"><Shield className="h-4 w-4 text-blue-500" /><span className="text-sm">Insurance:</span><span className="font-medium">{formatCurrency(totals.insurance)}</span></div>
-            <div className="flex items-center gap-2"><ParkingCircle className="h-4 w-4 text-purple-500" /><span className="text-sm">Parking:</span><span className="font-medium">{formatCurrency(totals.parking)}</span></div>
-            <div className="flex items-center gap-2"><Radio className="h-4 w-4 text-cyan-500" /><span className="text-sm">ELD:</span><span className="font-medium">{formatCurrency(totals.eld)}</span></div>
-            <div className="flex items-center gap-2"><CircleDollarSign className="h-4 w-4 text-green-500" /><span className="text-sm">Tolls:</span><span className="font-medium">{formatCurrency(totals.tolls)}</span></div>
-            {totals.customFixedTotal > 0 && <div className="flex items-center gap-2"><DollarSign className="h-4 w-4 text-amber-500" /><span className="text-sm">Other:</span><span className="font-medium">{formatCurrency(totals.customFixedTotal)}</span></div>}
+      {/* Per-truck breakdown: cards on mobile, table on desktop */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Per-Truck Breakdown</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0 md:p-0">
+          {/* Mobile cards */}
+          <div className="space-y-2 p-3 md:hidden">
+            {data.trucks.map((t) => (
+              <Link
+                key={t.truckId}
+                href={`/trucks/${t.truckId}/summary`}
+                className="block rounded-lg border bg-card p-3 shadow-sm transition-colors hover:bg-accent/30"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-baseline gap-2 min-w-0">
+                    <span className="font-semibold text-primary">
+                      #{t.truckNumber}
+                    </span>
+                    <span className="text-xs text-muted-foreground truncate">
+                      Gross {formatCurrencyCompact(t.grossPay)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <span
+                      className={`text-base font-bold ${
+                        t.netPay >= 0 ? "text-green-700" : "text-red-600"
+                      }`}
+                    >
+                      {formatCurrency(t.netPay)}
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                </div>
+                <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+                  <span>
+                    Fuel <span className="text-foreground">{formatCurrencyCompact(t.fuelTotal)}</span>
+                  </span>
+                  <span>
+                    Repairs <span className="text-foreground">{formatCurrencyCompact(t.repairsTotal)}</span>
+                  </span>
+                  <span>
+                    Fixed <span className="text-foreground">{formatCurrencyCompact(t.fixedTotal)}</span>
+                  </span>
+                </div>
+              </Link>
+            ))}
+            {/* Totals card */}
+            <div className="rounded-lg border bg-muted/50 p-3 font-semibold">
+              <div className="flex items-center justify-between text-sm">
+                <span>TOTAL</span>
+                <span
+                  className={totals.netPay >= 0 ? "text-green-700" : "text-red-600"}
+                >
+                  {formatCurrency(totals.netPay)}
+                </span>
+              </div>
+              <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-muted-foreground font-normal">
+                <span>
+                  Gross{" "}
+                  <span className="text-green-700 font-medium">
+                    {formatCurrencyCompact(totals.grossPay)}
+                  </span>
+                </span>
+                <span>
+                  Deductions{" "}
+                  <span className="text-red-600 font-medium">
+                    {formatCurrencyCompact(totals.totalDeductions)}
+                  </span>
+                </span>
+                <span>
+                  Fixed{" "}
+                  <span className="text-foreground font-medium">
+                    {formatCurrencyCompact(totals.fixedTotal)}
+                  </span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Truck</TableHead>
+                  <TableHead className="text-right">Gross</TableHead>
+                  <TableHead className="text-right">Fuel</TableHead>
+                  <TableHead className="text-right">Repairs</TableHead>
+                  <TableHead className="text-right">Fixed</TableHead>
+                  <TableHead className="text-right">Deductions</TableHead>
+                  <TableHead className="text-right">Net Pay</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.trucks.map((t) => (
+                  <TableRow key={t.truckId}>
+                    <TableCell>
+                      <Link
+                        href={`/trucks/${t.truckId}/summary`}
+                        className="font-medium text-primary hover:underline"
+                      >
+                        #{t.truckNumber}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-right text-green-700">
+                      {formatCurrency(t.grossPay)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(t.fuelTotal)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(t.repairsTotal)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(t.fixedTotal)}
+                    </TableCell>
+                    <TableCell className="text-right text-red-600">
+                      {formatCurrency(t.totalDeductions)}
+                    </TableCell>
+                    <TableCell
+                      className={`text-right font-bold ${
+                        t.netPay >= 0 ? "text-green-700" : "text-red-600"
+                      }`}
+                    >
+                      {formatCurrency(t.netPay)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                <TableRow className="bg-muted/50 font-bold">
+                  <TableCell>TOTAL</TableCell>
+                  <TableCell className="text-right text-green-700">
+                    {formatCurrency(totals.grossPay)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {formatCurrency(totals.fuelTotal)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {formatCurrency(totals.repairsTotal)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {formatCurrency(totals.fixedTotal)}
+                  </TableCell>
+                  <TableCell className="text-right text-red-600">
+                    {formatCurrency(totals.totalDeductions)}
+                  </TableCell>
+                  <TableCell
+                    className={`text-right ${
+                      totals.netPay >= 0 ? "text-green-700" : "text-red-600"
+                    }`}
+                  >
+                    {formatCurrency(totals.netPay)}
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
           </div>
         </CardContent>
       </Card>
-
-      {/* Per-truck table */}
-      <Card>
-        <CardHeader><CardTitle className="text-base">Per-Truck Breakdown</CardTitle></CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Truck</TableHead>
-                <TableHead className="text-right">Gross</TableHead>
-                <TableHead className="text-right">Fuel</TableHead>
-                <TableHead className="text-right">Repairs</TableHead>
-                <TableHead className="text-right">Fixed</TableHead>
-                <TableHead className="text-right">Deductions</TableHead>
-                <TableHead className="text-right">Net Pay</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.trucks.map((t) => (
-                <TableRow key={t.truckId}>
-                  <TableCell>
-                    <Link href={`/trucks/${t.truckId}/summary`} className="font-medium text-primary hover:underline">
-                      #{t.truckNumber}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="text-right text-green-700">{formatCurrency(t.grossPay)}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(t.fuelTotal)}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(t.repairsTotal)}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(t.fixedTotal)}</TableCell>
-                  <TableCell className="text-right text-red-600">{formatCurrency(t.totalDeductions)}</TableCell>
-                  <TableCell className={`text-right font-bold ${t.netPay >= 0 ? "text-green-700" : "text-red-600"}`}>
-                    {formatCurrency(t.netPay)}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {/* Totals row */}
-              <TableRow className="bg-muted/50 font-bold">
-                <TableCell>TOTAL</TableCell>
-                <TableCell className="text-right text-green-700">{formatCurrency(totals.grossPay)}</TableCell>
-                <TableCell className="text-right">{formatCurrency(totals.fuelTotal)}</TableCell>
-                <TableCell className="text-right">{formatCurrency(totals.repairsTotal)}</TableCell>
-                <TableCell className="text-right">{formatCurrency(totals.fixedTotal)}</TableCell>
-                <TableCell className="text-right text-red-600">{formatCurrency(totals.totalDeductions)}</TableCell>
-                <TableCell className={`text-right ${totals.netPay >= 0 ? "text-green-700" : "text-red-600"}`}>
-                  {formatCurrency(totals.netPay)}
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
     </div>
+  );
+}
+
+interface SummaryStatProps {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  tone: "positive" | "negative";
+  highlight?: boolean;
+}
+
+function SummaryStat({ icon, label, value, tone, highlight }: SummaryStatProps) {
+  return (
+    <Card className={highlight ? "border-2 border-primary/20" : ""}>
+      <CardContent className="px-3 py-3 sm:p-5">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground sm:text-sm">
+          {icon}
+          <span className="truncate">{label}</span>
+        </div>
+        <p
+          className={`mt-1 text-base font-bold sm:text-2xl tabular-nums ${
+            tone === "positive" ? "text-green-700" : "text-red-600"
+          }`}
+        >
+          <span className="sm:hidden">{formatCurrencyCompact(value)}</span>
+          <span className="hidden sm:inline">{formatCurrency(value)}</span>
+        </p>
+      </CardContent>
+    </Card>
   );
 }

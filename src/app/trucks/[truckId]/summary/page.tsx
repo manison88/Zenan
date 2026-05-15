@@ -4,8 +4,25 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/dashboard/date-range-picker";
-import { type DateRange, getPresetRange, formatCurrency } from "@/lib/date-utils";
-import { DollarSign, TrendingUp, TrendingDown, Wrench, Fuel, Shield, ParkingCircle, Radio, CircleDollarSign } from "lucide-react";
+import { DataListSkeleton } from "@/components/shared/data-list";
+import {
+  type DateRange,
+  getPresetRange,
+  formatCurrency,
+  formatCurrencyCompact,
+} from "@/lib/date-utils";
+import {
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  Wrench,
+  Fuel,
+  Shield,
+  ParkingCircle,
+  Radio,
+  CircleDollarSign,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface TruckSummary {
   grossPay: number;
@@ -39,45 +56,74 @@ export default function TruckSummaryPage() {
     setLoading(false);
   }, [truckId, dateRange]);
 
-  useEffect(() => { fetchSummary(); }, [fetchSummary]);
+  useEffect(() => {
+    fetchSummary();
+  }, [fetchSummary]);
 
   return (
     <div>
-      <div className="mb-6">
+      <div className="mb-4">
         <h2 className="mb-3 text-lg font-semibold">Financial Summary</h2>
         <DateRangePicker value={dateRange} onChange={setDateRange} />
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>
+        <div className="space-y-4">
+          <div className="grid gap-3 grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-20 rounded-xl border bg-card animate-pulse" />
+            ))}
+          </div>
+          <DataListSkeleton rows={4} />
+        </div>
       ) : summary ? (
-        <div className="space-y-6">
-          {/* Top cards */}
-          <div className="grid gap-4 sm:grid-cols-3">
-            <SummaryCard icon={<TrendingUp className="h-5 w-5 text-green-600" />} label="Gross Pay" value={summary.grossPay} positive />
-            <SummaryCard icon={<TrendingDown className="h-5 w-5 text-red-500" />} label="Total Deductions" value={summary.totalDeductions} />
-            <SummaryCard icon={<DollarSign className="h-5 w-5 text-blue-600" />} label="Net Pay" value={summary.netPay} positive={summary.netPay >= 0} highlight />
+        <div className="space-y-4">
+          <div className="grid gap-3 grid-cols-3">
+            <SummaryCard
+              icon={<TrendingUp className="h-4 w-4 text-green-600 sm:h-5 sm:w-5" />}
+              label="Gross"
+              value={summary.grossPay}
+              positive
+            />
+            <SummaryCard
+              icon={<TrendingDown className="h-4 w-4 text-red-500 sm:h-5 sm:w-5" />}
+              label="Deductions"
+              value={summary.totalDeductions}
+            />
+            <SummaryCard
+              icon={<DollarSign className="h-4 w-4 text-blue-600 sm:h-5 sm:w-5" />}
+              label="Net Pay"
+              value={summary.netPay}
+              positive={summary.netPay >= 0}
+              highlight
+            />
           </div>
 
-          {/* Deductions breakdown */}
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-3">
               <CardTitle className="text-base">Deductions Breakdown</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                <DeductionRow icon={<Fuel className="h-4 w-4" />} label="Fuel/Gas" amount={summary.fuelTotal} />
-                <DeductionRow icon={<Wrench className="h-4 w-4" />} label="Repairs" amount={summary.repairsTotal} />
-                <DeductionRow icon={<Shield className="h-4 w-4" />} label={`Insurance (${summary.months} mo)`} amount={summary.insurance} />
-                <DeductionRow icon={<ParkingCircle className="h-4 w-4" />} label={`Parking (${summary.months} mo)`} amount={summary.parking} />
-                <DeductionRow icon={<Radio className="h-4 w-4" />} label={`ELD (${summary.months} mo)`} amount={summary.eld} />
-                <DeductionRow icon={<CircleDollarSign className="h-4 w-4" />} label={`Tolls (${summary.months} mo)`} amount={summary.tolls} />
+                <DeductionRow icon={<Fuel className="h-4 w-4 text-red-500" />} label="Fuel/Gas" amount={summary.fuelTotal} />
+                <DeductionRow icon={<Wrench className="h-4 w-4 text-orange-500" />} label="Repairs" amount={summary.repairsTotal} />
+                <DeductionRow icon={<Shield className="h-4 w-4 text-blue-500" />} label={`Insurance (${summary.months} mo)`} amount={summary.insurance} />
+                <DeductionRow icon={<ParkingCircle className="h-4 w-4 text-purple-500" />} label={`Parking (${summary.months} mo)`} amount={summary.parking} />
+                <DeductionRow icon={<Radio className="h-4 w-4 text-cyan-500" />} label={`ELD (${summary.months} mo)`} amount={summary.eld} />
+                <DeductionRow icon={<CircleDollarSign className="h-4 w-4 text-green-500" />} label={`Tolls (${summary.months} mo)`} amount={summary.tolls} />
                 {summary.customCosts?.map((cc) => (
-                  <DeductionRow key={cc.name} icon={<DollarSign className="h-4 w-4" />} label={`${cc.name} (${summary.months} mo)`} amount={cc.total} />
+                  <DeductionRow
+                    key={cc.name}
+                    icon={<DollarSign className="h-4 w-4 text-amber-500" />}
+                    label={`${cc.name} (${summary.months} mo)`}
+                    amount={cc.total}
+                  />
                 ))}
                 <div className="border-t pt-3 flex justify-between font-semibold">
                   <span>Total Deductions</span>
-                  <span className="text-red-600">{formatCurrency(summary.totalDeductions)}</span>
+                  <span className="text-red-600 tabular-nums">
+                    {formatCurrency(summary.totalDeductions)}
+                  </span>
                 </div>
               </div>
             </CardContent>
@@ -88,28 +134,56 @@ export default function TruckSummaryPage() {
   );
 }
 
-function SummaryCard({ icon, label, value, positive, highlight }: { icon: React.ReactNode; label: string; value: number; positive?: boolean; highlight?: boolean }) {
+function SummaryCard({
+  icon,
+  label,
+  value,
+  positive,
+  highlight,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  positive?: boolean;
+  highlight?: boolean;
+}) {
   return (
     <Card className={highlight ? "border-2 border-primary/20" : ""}>
-      <CardContent className="pt-6">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">{icon}{label}</div>
-        <p className={cn("mt-2 text-2xl font-bold", positive ? "text-green-700" : "text-red-600")}>
-          {formatCurrency(value)}
+      <CardContent className="px-3 py-3 sm:p-5">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground sm:text-sm">
+          {icon}
+          <span className="truncate">{label}</span>
+        </div>
+        <p
+          className={cn(
+            "mt-1 text-base font-bold sm:text-2xl tabular-nums",
+            positive ? "text-green-700" : "text-red-600"
+          )}
+        >
+          <span className="sm:hidden">{formatCurrencyCompact(value)}</span>
+          <span className="hidden sm:inline">{formatCurrency(value)}</span>
         </p>
       </CardContent>
     </Card>
   );
 }
 
-function DeductionRow({ icon, label, amount }: { icon: React.ReactNode; label: string; amount: number }) {
+function DeductionRow({
+  icon,
+  label,
+  amount,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  amount: number;
+}) {
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">{icon}<span>{label}</span></div>
-      <span className="font-medium">{formatCurrency(amount)}</span>
+    <div className="flex items-center justify-between gap-2">
+      <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+        {icon}
+        <span className="truncate">{label}</span>
+      </div>
+      <span className="font-medium tabular-nums shrink-0">{formatCurrency(amount)}</span>
     </div>
   );
-}
-
-function cn(...classes: (string | boolean | undefined)[]) {
-  return classes.filter(Boolean).join(" ");
 }
