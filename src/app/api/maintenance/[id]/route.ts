@@ -1,8 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/db";
-import { repairs, trucks } from "@/db/schema";
+import { maintenanceLogs, trucks } from "@/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { requireTenant, isAuthError } from "@/lib/auth/session";
+
+function toNumberOrNull(v: unknown): number | null {
+  if (v === undefined || v === null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function toStringOrNull(v: unknown): string | null {
+  if (v === undefined || v === null) return null;
+  const s = String(v).trim();
+  return s.length === 0 ? null : s;
+}
 
 export async function PUT(
   request: NextRequest,
@@ -14,21 +26,31 @@ export async function PUT(
   const db = await getDb();
   const body = await request.json();
 
+  if (!body.repairTypeId) {
+    return NextResponse.json({ error: "repairTypeId is required" }, { status: 400 });
+  }
+
   const ownedTrucks = db
     .select({ id: trucks.id })
     .from(trucks)
     .where(eq(trucks.tenantId, auth.tenantId));
 
   const result = await db
-    .update(repairs)
+    .update(maintenanceLogs)
     .set({
-      date: body.date,
       repairTypeId: Number(body.repairTypeId),
-      amount: Number(body.amount),
-      notes: body.notes || null,
+      serviceDate: toStringOrNull(body.serviceDate),
+      serviceOdometer: toNumberOrNull(body.serviceOdometer),
+      cost: toNumberOrNull(body.cost) ?? 0,
+      notes: toStringOrNull(body.notes),
+      nextDueDate: toStringOrNull(body.nextDueDate),
+      nextDueOdometer: toNumberOrNull(body.nextDueOdometer),
     })
     .where(
-      and(eq(repairs.id, Number(id)), inArray(repairs.truckId, ownedTrucks))
+      and(
+        eq(maintenanceLogs.id, Number(id)),
+        inArray(maintenanceLogs.truckId, ownedTrucks)
+      )
     )
     .returning();
 
@@ -53,9 +75,12 @@ export async function DELETE(
     .where(eq(trucks.tenantId, auth.tenantId));
 
   const result = await db
-    .delete(repairs)
+    .delete(maintenanceLogs)
     .where(
-      and(eq(repairs.id, Number(id)), inArray(repairs.truckId, ownedTrucks))
+      and(
+        eq(maintenanceLogs.id, Number(id)),
+        inArray(maintenanceLogs.truckId, ownedTrucks)
+      )
     )
     .returning();
 

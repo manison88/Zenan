@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { DataListSkeleton } from "@/components/shared/data-list";
 import { DateRangePicker } from "@/components/dashboard/date-range-picker";
+import { UpcomingMaintenanceCard } from "@/components/dashboard/upcoming-maintenance";
 import { EmptyState } from "@/components/shared/empty-state";
 import { OverflowMenu } from "@/components/ui/overflow-menu";
 import { PageHeader } from "@/components/layout/page-header";
@@ -335,6 +336,11 @@ export default function DashboardPage() {
           tone={totals.netPay >= 0 ? "positive" : "negative"}
           highlight
         />
+      </div>
+
+      {/* Upcoming Maintenance */}
+      <div className="mb-6">
+        <UpcomingMaintenanceCard />
       </div>
 
       {/* Charts */}

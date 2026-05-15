@@ -3,25 +3,36 @@ import { getDb } from "@/db";
 import { trucks, trips, fuelLogs, repairs, fixedCosts, customFixedCosts } from "@/db/schema";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { countMonthsInRange } from "@/lib/date-utils";
+import { requireTenant, isAuthError } from "@/lib/auth/session";
 
 export async function GET(request: NextRequest) {
+  const auth = await requireTenant(request);
+  if (isAuthError(auth)) return auth;
+
   const { searchParams } = new URL(request.url);
   const startDate = searchParams.get("startDate");
   const endDate = searchParams.get("endDate");
 
   if (!startDate || !endDate) {
-    return NextResponse.json({ error: "startDate and endDate required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "startDate and endDate required" },
+      { status: 400 }
+    );
   }
 
   const excludeDemo = searchParams.get("excludeDemo") === "1";
 
   const db = await getDb();
 
-  let trucksQuery = db.select().from(trucks);
-  if (excludeDemo) {
-    trucksQuery = trucksQuery.where(eq(trucks.isDemo, 0)) as typeof trucksQuery;
-  }
-  const allTrucks = await trucksQuery.orderBy(trucks.truckNumber);
+  const truckConditions = [eq(trucks.tenantId, auth.tenantId)];
+  if (excludeDemo) truckConditions.push(eq(trucks.isDemo, 0));
+
+  const allTrucks = await db
+    .select()
+    .from(trucks)
+    .where(and(...truckConditions))
+    .orderBy(trucks.truckNumber);
+
   const months = countMonthsInRange(startDate, endDate);
 
   const truckSummaries = await Promise.all(
@@ -85,7 +96,6 @@ export async function GET(request: NextRequest) {
     })
   );
 
-  // Fleet totals
   const totals = truckSummaries.reduce(
     (acc, t) => ({
       grossPay: acc.grossPay + t.grossPay,
