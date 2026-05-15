@@ -23,8 +23,8 @@ export function PinScreen() {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background">
-      <Card className="w-full max-w-sm mx-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background p-4 safe-x safe-bottom">
+      <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-2">
             <Truck className="h-10 w-10 text-primary" />

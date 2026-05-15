@@ -4,8 +4,14 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { type DatePreset, type DateRange, getPresetRange, DATE_PRESET_LABELS } from "@/lib/date-utils";
+import {
+  type DatePreset,
+  type DateRange,
+  getPresetRange,
+  DATE_PRESET_LABELS,
+} from "@/lib/date-utils";
 
 interface DateRangePickerProps {
   value: DateRange;
@@ -34,7 +40,31 @@ export function DateRangePicker({ value, onChange, className }: DateRangePickerP
 
   return (
     <div className={cn("space-y-3", className)}>
-      <div className="flex flex-wrap gap-2">
+      {/* Mobile: compact select + custom toggle */}
+      <div className="flex gap-2 sm:hidden">
+        <Select
+          value={showCustom ? "custom" : activePreset}
+          onChange={(e) => {
+            if (e.target.value === "custom") {
+              setShowCustom(true);
+              setActivePreset("custom");
+            } else {
+              handlePreset(e.target.value as DatePreset);
+            }
+          }}
+          className="flex-1"
+        >
+          {presets.map((preset) => (
+            <option key={preset} value={preset}>
+              {DATE_PRESET_LABELS[preset]}
+            </option>
+          ))}
+          <option value="custom">Custom Range</option>
+        </Select>
+      </div>
+
+      {/* Desktop: chip row */}
+      <div className="hidden sm:flex sm:flex-wrap sm:gap-2">
         {presets.map((preset) => (
           <Button
             key={preset}
@@ -55,8 +85,8 @@ export function DateRangePicker({ value, onChange, className }: DateRangePickerP
       </div>
 
       {showCustom && (
-        <div className="flex items-end gap-3">
-          <div className="space-y-1">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="flex-1 space-y-1">
             <Label className="text-xs">From</Label>
             <Input
               type="date"
@@ -65,10 +95,9 @@ export function DateRangePicker({ value, onChange, className }: DateRangePickerP
                 setActivePreset("custom");
                 onChange({ ...value, from: e.target.value });
               }}
-              className="h-8 text-sm"
             />
           </div>
-          <div className="space-y-1">
+          <div className="flex-1 space-y-1">
             <Label className="text-xs">To</Label>
             <Input
               type="date"
@@ -77,7 +106,6 @@ export function DateRangePicker({ value, onChange, className }: DateRangePickerP
                 setActivePreset("custom");
                 onChange({ ...value, to: e.target.value });
               }}
-              className="h-8 text-sm"
             />
           </div>
         </div>

@@ -87,8 +87,29 @@ export function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+export function formatCurrencyCompact(amount: number): string {
+  const abs = Math.abs(amount);
+  if (abs < 1000) {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    }).format(amount);
+  }
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(amount);
+}
+
 export function formatDate(dateStr: string): string {
   return format(parseISO(dateStr), "MM/dd/yyyy");
+}
+
+export function formatDateShort(dateStr: string): string {
+  return format(parseISO(dateStr), "MMM d");
 }
 
 export const DATE_PRESET_LABELS: Record<DatePreset, string> = {

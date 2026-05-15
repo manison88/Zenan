@@ -1,7 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Sidebar } from "@/components/layout/sidebar";
 import { DemoProvider } from "@/lib/demo-context";
 import { PinProvider } from "@/lib/pin-context";
 import { AppShell } from "@/components/layout/app-shell";
@@ -21,6 +20,12 @@ export const metadata: Metadata = {
   description: "Truck fleet management and tracking",
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -30,16 +35,9 @@ export default function RootLayout({
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body className="min-h-screen bg-background font-sans antialiased">
         <PinProvider>
-          <AppShell>
-            <DemoProvider>
-              <div className="flex min-h-screen">
-                <Sidebar />
-                <main className="flex-1 overflow-auto">
-                  <div className="container mx-auto p-6">{children}</div>
-                </main>
-              </div>
-            </DemoProvider>
-          </AppShell>
+          <DemoProvider>
+            <AppShell>{children}</AppShell>
+          </DemoProvider>
         </PinProvider>
       </body>
     </html>

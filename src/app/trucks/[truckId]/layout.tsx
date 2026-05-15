@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { TabNav } from "@/components/ui/tabs";
+import { PageHeader } from "@/components/layout/page-header";
 import { Truck } from "lucide-react";
 
 interface TruckRecord {
@@ -10,7 +11,11 @@ interface TruckRecord {
   truckNumber: string;
 }
 
-export default function TruckDetailLayout({ children }: { children: React.ReactNode }) {
+export default function TruckDetailLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const params = useParams();
   const truckId = params.truckId as string;
   const [truck, setTruck] = useState<TruckRecord | null>(null);
@@ -30,15 +35,19 @@ export default function TruckDetailLayout({ children }: { children: React.ReactN
     { label: "Summary", href: `/trucks/${truckId}/summary` },
   ];
 
+  const title = truck ? `Truck #${truck.truckNumber}` : "Truck";
+
   return (
     <div>
-      <div className="mb-4 flex items-center gap-3">
-        <Truck className="h-6 w-6 text-primary" />
-        <h1 className="text-2xl font-bold">
-          Truck #{truck?.truckNumber ?? "..."}
-        </h1>
+      <PageHeader title={title} />
+
+      {/* Mobile-only heading */}
+      <div className="mb-4 flex items-center gap-2 md:hidden">
+        <Truck className="h-5 w-5 text-primary" />
+        <h1 className="text-xl font-bold">{title}</h1>
       </div>
-      <TabNav tabs={tabs} className="mb-6" />
+
+      <TabNav tabs={tabs} className="mb-4 md:mb-6" />
       {children}
     </div>
   );
