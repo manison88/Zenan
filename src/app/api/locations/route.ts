@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/db";
-import { trips, fuelLogs } from "@/db/schema";
-import { sql } from "drizzle-orm";
+import { trips, fuelLogs, trucks } from "@/db/schema";
+import { eq, inArray } from "drizzle-orm";
+import { requireTenant, isAuthError } from "@/lib/auth/session";
 
 export async function GET(request: NextRequest) {
+  const auth = await requireTenant(request);
+  if (isAuthError(auth)) return auth;
+
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q")?.toLowerCase() || "";
 
@@ -13,29 +17,35 @@ export async function GET(request: NextRequest) {
 
   const db = await getDb();
 
-  // Get distinct city/state combos from trips and fuel_logs
+  const ownedTrucks = db
+    .select({ id: trucks.id })
+    .from(trucks)
+    .where(eq(trucks.tenantId, auth.tenantId));
+
   const tripLocations = await db
     .selectDistinct({
       city: trips.fromCity,
       state: trips.fromState,
     })
-    .from(trips);
+    .from(trips)
+    .where(inArray(trips.truckId, ownedTrucks));
 
   const tripToLocations = await db
     .selectDistinct({
       city: trips.toCity,
       state: trips.toState,
     })
-    .from(trips);
+    .from(trips)
+    .where(inArray(trips.truckId, ownedTrucks));
 
   const fuelLocations = await db
     .selectDistinct({
       city: fuelLogs.city,
       state: fuelLogs.state,
     })
-    .from(fuelLogs);
+    .from(fuelLogs)
+    .where(inArray(fuelLogs.truckId, ownedTrucks));
 
-  // Combine and deduplicate
   const allLocations = [...tripLocations, ...tripToLocations, ...fuelLocations];
   const uniqueMap = new Map<string, { city: string; state: string }>();
   for (const loc of allLocations) {
@@ -45,7 +55,6 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Filter by query
   const filtered = Array.from(uniqueMap.values()).filter(
     (loc) =>
       loc.city.toLowerCase().includes(q) ||

@@ -1,37 +1,43 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/db";
 import { trucks, trips, fuelLogs, repairs, repairTypes, odometerLogs, fixedCosts } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { format, subDays, subWeeks, startOfWeek } from "date-fns";
+import { requireTenant, isAuthError } from "@/lib/auth/session";
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const auth = await requireTenant(request);
+  if (isAuthError(auth)) return auth;
+
   const db = await getDb();
 
-  // Delete existing demo truck (cascade deletes all related data)
+  // Delete this tenant's existing demo truck (cascade deletes all related data)
   const existing = await db
     .select()
     .from(trucks)
-    .where(eq(trucks.isDemo, 1))
+    .where(and(eq(trucks.tenantId, auth.tenantId), eq(trucks.isDemo, 1)))
     .get();
 
   if (existing) {
     await db.delete(trucks).where(eq(trucks.id, existing.id));
   }
 
-  // Create demo truck
+  // Create demo truck scoped to this tenant
   const [demoTruck] = await db
     .insert(trucks)
-    .values({ truckNumber: "DEMO-100", isDemo: 1 })
+    .values({
+      tenantId: auth.tenantId,
+      truckNumber: "DEMO-100",
+      isDemo: 1,
+    })
     .returning();
 
   const truckId = demoTruck.id;
   const today = new Date();
 
-  // Get repair type IDs
   const allTypes = await db.select().from(repairTypes);
   const typeMap = Object.fromEntries(allTypes.map((t) => [t.name, t.id]));
 
-  // ── Trips (8) ─────────────────────────────────────────
   const tripData = [
     { daysAgo: 52, fromCity: "Chicago", fromState: "IL", toCity: "Detroit", toState: "MI", trailer: "T-4420", billNumber: "BOL-10421", amount: 2800 },
     { daysAgo: 45, fromCity: "Detroit", fromState: "MI", toCity: "Columbus", toState: "OH", trailer: "T-4420", billNumber: "BOL-10435", amount: 1800 },
@@ -57,7 +63,6 @@ export async function POST() {
     }))
   );
 
-  // ── Fuel (6) ──────────────────────────────────────────
   const fuelData = [
     { daysAgo: 51, city: "Gary", state: "IN", gallons: 110, amount: 385 },
     { daysAgo: 44, city: "Toledo", state: "OH", gallons: 95, amount: 333 },
@@ -78,7 +83,6 @@ export async function POST() {
     }))
   );
 
-  // ── Repairs (3) ───────────────────────────────────────
   const repairData = [
     { daysAgo: 40, type: "Oil Change", amount: 350, notes: "Full synthetic oil change + filter" },
     { daysAgo: 25, type: "Tires", amount: 1200, notes: "Replaced 4 drive tires" },
@@ -95,7 +99,6 @@ export async function POST() {
     }))
   );
 
-  // ── Odometer (4 weeks) ────────────────────────────────
   const odometerData = [
     { weeksAgo: 4, start: 145000, end: 147520 },
     { weeksAgo: 3, start: 147520, end: 150180 },
@@ -112,7 +115,6 @@ export async function POST() {
     }))
   );
 
-  // ── Fixed Costs ───────────────────────────────────────
   await db.insert(fixedCosts).values({
     truckId,
     insurance: 450,

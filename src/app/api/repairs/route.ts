@@ -2,8 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/db";
 import { repairs, repairTypes } from "@/db/schema";
 import { eq, and, gte, lte, desc } from "drizzle-orm";
+import { requireTenant, isAuthError } from "@/lib/auth/session";
+import { ownTruck } from "@/lib/auth/tenant-scope";
 
 export async function GET(request: NextRequest) {
+  const auth = await requireTenant(request);
+  if (isAuthError(auth)) return auth;
+
   const { searchParams } = new URL(request.url);
   const truckId = searchParams.get("truckId");
   const startDate = searchParams.get("startDate");
@@ -12,6 +17,9 @@ export async function GET(request: NextRequest) {
   if (!truckId) {
     return NextResponse.json({ error: "truckId is required" }, { status: 400 });
   }
+
+  const truck = await ownTruck(auth.tenantId, Number(truckId));
+  if (truck instanceof NextResponse) return truck;
 
   const db = await getDb();
   const conditions = [eq(repairs.truckId, Number(truckId))];
@@ -38,12 +46,18 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireTenant(request);
+  if (isAuthError(auth)) return auth;
+
   const db = await getDb();
   const body = await request.json();
 
   if (!body.truckId || !body.date || !body.repairTypeId || body.amount == null) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
+
+  const truck = await ownTruck(auth.tenantId, Number(body.truckId));
+  if (truck instanceof NextResponse) return truck;
 
   const result = await db
     .insert(repairs)

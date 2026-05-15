@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useDemo } from "@/lib/demo-context";
-import { usePin } from "@/lib/pin-context";
+import { useAuth } from "@/lib/auth-context";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +16,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LayoutDashboard, Truck, X, Eye, EyeOff, Lock } from "lucide-react";
+import {
+  LayoutDashboard,
+  Truck,
+  X,
+  Eye,
+  EyeOff,
+  Lock,
+  LogOut,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 
 const navItems = [
@@ -31,12 +39,16 @@ interface SidebarProps {
 
 export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { demoVisible, setDemoVisible } = useDemo();
-  const { updatePin } = usePin();
+  const { tenant, signOut } = useAuth();
   const [pinDialogOpen, setPinDialogOpen] = useState(false);
   const [pinForm, setPinForm] = useState({ current: "", newPin: "", confirm: "" });
   const [pinError, setPinError] = useState("");
   const [pinSuccess, setPinSuccess] = useState(false);
+  const [pinSaving, setPinSaving] = useState(false);
+
+  const fleetName = tenant?.fleetName || "Zenan Fleet";
 
   useEffect(() => {
     if (mobileOpen) {
@@ -48,12 +60,16 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
     }
   }, [mobileOpen]);
 
-  function handlePinChange(e: React.FormEvent) {
+  async function handlePinChange(e: React.FormEvent) {
     e.preventDefault();
     setPinError("");
 
-    if (pinForm.newPin.length < 4) {
-      setPinError("PIN must be at least 4 characters");
+    if (pinForm.newPin.length < 4 || pinForm.newPin.length > 12) {
+      setPinError("PIN must be 4–12 digits");
+      return;
+    }
+    if (!/^\d+$/.test(pinForm.newPin)) {
+      setPinError("PIN must be numeric");
       return;
     }
     if (pinForm.newPin !== pinForm.confirm) {
@@ -61,18 +77,37 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
       return;
     }
 
-    const success = updatePin(pinForm.current, pinForm.newPin);
-    if (!success) {
-      setPinError("Current PIN is incorrect");
-      return;
+    setPinSaving(true);
+    try {
+      const res = await fetch("/api/auth/change-pin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPin: pinForm.current,
+          newPin: pinForm.newPin,
+        }),
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPinError(data.error || "Failed to update PIN");
+        return;
+      }
+      setPinSuccess(true);
+      setTimeout(() => {
+        setPinDialogOpen(false);
+        setPinSuccess(false);
+        setPinForm({ current: "", newPin: "", confirm: "" });
+      }, 1500);
+    } finally {
+      setPinSaving(false);
     }
+  }
 
-    setPinSuccess(true);
-    setTimeout(() => {
-      setPinDialogOpen(false);
-      setPinSuccess(false);
-      setPinForm({ current: "", newPin: "", confirm: "" });
-    }, 1500);
+  async function handleSignOut() {
+    onMobileClose();
+    await signOut();
+    router.push("/login");
   }
 
   return (
@@ -94,10 +129,12 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
           <Link
             href="/dashboard"
             onClick={onMobileClose}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 overflow-hidden"
           >
-            <Truck className="h-6 w-6 text-primary" />
-            <span className="text-lg font-bold text-primary">Zenan Fleet</span>
+            <Truck className="h-6 w-6 shrink-0 text-primary" />
+            <span className="truncate text-lg font-bold text-primary">
+              {fleetName}
+            </span>
           </Link>
           <button
             type="button"
@@ -133,6 +170,15 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
         </nav>
 
         <div className="border-t p-4 space-y-1 safe-bottom">
+          {tenant && (
+            <div className="px-3 pb-2 pt-1 text-xs text-muted-foreground">
+              <div className="truncate">Signed in as</div>
+              <div className="truncate font-medium text-foreground">
+                {tenant.email}
+              </div>
+            </div>
+          )}
+
           <button
             onClick={() => setDemoVisible(!demoVisible)}
             className="flex w-full items-center justify-between rounded-lg px-3 py-3 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent/50"
@@ -167,6 +213,14 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
           >
             <Lock className="h-4 w-4" />
             Change PIN
+          </button>
+
+          <button
+            onClick={handleSignOut}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent/50"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign out
           </button>
         </div>
       </aside>
@@ -229,10 +283,13 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                   type="button"
                   variant="outline"
                   onClick={() => setPinDialogOpen(false)}
+                  disabled={pinSaving}
                 >
                   Cancel
                 </Button>
-                <Button type="submit">Update PIN</Button>
+                <Button type="submit" disabled={pinSaving}>
+                  {pinSaving ? "Updating…" : "Update PIN"}
+                </Button>
               </DialogFooter>
             </form>
           )}

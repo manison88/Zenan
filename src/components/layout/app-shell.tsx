@@ -1,19 +1,45 @@
 "use client";
 
-import { useState } from "react";
-import { usePin } from "@/lib/pin-context";
-import { PinScreen } from "@/components/layout/pin-screen";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 import { Sidebar } from "@/components/layout/sidebar";
 import { TopBar } from "@/components/layout/top-bar";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { PageHeaderProvider } from "@/components/layout/page-header";
 
+function isPublicPath(pathname: string) {
+  if (pathname === "/") return true;
+  if (pathname === "/login") return true;
+  if (pathname === "/onboarding") return true;
+  if (pathname.startsWith("/onboarding/")) return true;
+  return false;
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { isUnlocked } = usePin();
+  const pathname = usePathname();
+  const router = useRouter();
+  const { status } = useAuth();
+  const isPublic = isPublicPath(pathname);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  if (!isUnlocked) {
-    return <PinScreen />;
+  useEffect(() => {
+    if (isPublic) return;
+    if (status === "unauthenticated") {
+      router.replace("/login");
+    }
+  }, [isPublic, status, router]);
+
+  if (isPublic) {
+    return <>{children}</>;
+  }
+
+  if (status !== "authenticated") {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
   }
 
   return (
