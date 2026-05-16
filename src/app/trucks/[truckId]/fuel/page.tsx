@@ -25,7 +25,9 @@ import {
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { LocationInput } from "@/components/shared/location-input";
-import { DataList, DataListCard, DataListSkeleton } from "@/components/shared/data-list";
+import { DataListCard, DataListSkeleton } from "@/components/shared/data-list";
+import { MonthGroupedList } from "@/components/shared/month-grouped-list";
+import { FloatingActionButton } from "@/components/shared/fab";
 import { OverflowMenu } from "@/components/ui/overflow-menu";
 import { ConfirmSheet } from "@/components/ui/confirm-sheet";
 import { Plus, Pencil, Trash2, Fuel } from "lucide-react";
@@ -56,6 +58,7 @@ export default function FuelPage() {
 
   useEffect(() => {
     fetchLogs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [truckId]);
 
   async function fetchLogs() {
@@ -120,6 +123,41 @@ export default function FuelPage() {
   const totalAmount = logs.reduce((s, l) => s + l.amount, 0);
   const totalGallons = logs.reduce((s, l) => s + l.gallons, 0);
 
+  function renderCard(log: FuelLog) {
+    return (
+      <DataListCard
+        primary={
+          <span className="break-words">
+            {formatDateShort(log.date)} · {log.city}, {log.state}
+          </span>
+        }
+        trailing={formatCurrency(log.amount)}
+        secondary={
+          <>
+            {log.gallons.toFixed(1)} gal · ${(log.amount / log.gallons).toFixed(2)}/gal
+          </>
+        }
+        actions={
+          <OverflowMenu
+            actions={[
+              {
+                label: "Edit",
+                icon: <Pencil className="h-4 w-4" />,
+                onClick: () => openEdit(log),
+              },
+              {
+                label: "Delete",
+                icon: <Trash2 className="h-4 w-4" />,
+                destructive: true,
+                onClick: () => setConfirmDeleteId(log.id),
+              },
+            ]}
+          />
+        }
+      />
+    );
+  }
+
   return (
     <div>
       <div className="mb-4 flex items-start justify-between gap-2">
@@ -131,62 +169,36 @@ export default function FuelPage() {
             </p>
           )}
         </div>
-        <Button onClick={openAdd} size="sm" className="shrink-0">
+        <Button onClick={openAdd} size="sm" className="hidden shrink-0 md:inline-flex">
           <Plus className="h-4 w-4" /> Add Fuel
         </Button>
       </div>
 
       {loading ? (
         <DataListSkeleton rows={4} />
-      ) : (
-        <DataList
-          items={logs}
-          getKey={(log) => log.id}
-          emptyState={
-            <EmptyState
-              icon={<Fuel className="h-12 w-12" />}
-              title="No fuel entries"
-              description="Log fuel purchases to track gas expenses"
-              action={
-                <Button onClick={openAdd}>
-                  <Plus className="h-4 w-4" /> Add Fuel
-                </Button>
-              }
-            />
+      ) : logs.length === 0 ? (
+        <EmptyState
+          icon={<Fuel className="h-12 w-12" />}
+          title="No fuel entries"
+          description="Log fuel purchases to track gas expenses"
+          action={
+            <Button onClick={openAdd}>
+              <Plus className="h-4 w-4" /> Add Fuel
+            </Button>
           }
-          renderCard={(log) => (
-            <DataListCard
-              primary={
-                <>
-                  {formatDateShort(log.date)} · {log.city}, {log.state}
-                </>
-              }
-              trailing={formatCurrency(log.amount)}
-              secondary={
-                <>
-                  {log.gallons.toFixed(1)} gal · ${(log.amount / log.gallons).toFixed(2)}/gal
-                </>
-              }
-              actions={
-                <OverflowMenu
-                  actions={[
-                    {
-                      label: "Edit",
-                      icon: <Pencil className="h-4 w-4" />,
-                      onClick: () => openEdit(log),
-                    },
-                    {
-                      label: "Delete",
-                      icon: <Trash2 className="h-4 w-4" />,
-                      destructive: true,
-                      onClick: () => setConfirmDeleteId(log.id),
-                    },
-                  ]}
-                />
-              }
+        />
+      ) : (
+        <>
+          <div className="md:hidden">
+            <MonthGroupedList
+              items={logs}
+              getKey={(l) => l.id}
+              getDate={(l) => l.date}
+              renderItem={renderCard}
             />
-          )}
-          renderTable={() => (
+          </div>
+
+          <div className="hidden md:block">
             <Card>
               <CardContent className="p-0">
                 <Table>
@@ -207,9 +219,7 @@ export default function FuelPage() {
                         <TableCell>
                           {log.city}, {log.state}
                         </TableCell>
-                        <TableCell className="text-right">
-                          {log.gallons.toFixed(1)}
-                        </TableCell>
+                        <TableCell className="text-right">{log.gallons.toFixed(1)}</TableCell>
                         <TableCell className="text-right font-medium">
                           {formatCurrency(log.amount)}
                         </TableCell>
@@ -227,7 +237,7 @@ export default function FuelPage() {
                             </button>
                             <button
                               onClick={() => setConfirmDeleteId(log.id)}
-                              className="rounded p-1 hover:bg-destructive/10 text-destructive"
+                              className="rounded p-1 text-destructive hover:bg-destructive/10"
                               aria-label="Delete"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
@@ -240,9 +250,15 @@ export default function FuelPage() {
                 </Table>
               </CardContent>
             </Card>
-          )}
-        />
+          </div>
+        </>
       )}
+
+      <FloatingActionButton
+        onClick={openAdd}
+        label="Add Fuel"
+        icon={<Plus className="h-6 w-6" />}
+      />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent onClose={() => setDialogOpen(false)}>

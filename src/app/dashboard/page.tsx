@@ -18,6 +18,8 @@ import { UpcomingMaintenanceCard } from "@/components/dashboard/upcoming-mainten
 import { EmptyState } from "@/components/shared/empty-state";
 import { OverflowMenu } from "@/components/ui/overflow-menu";
 import { PageHeader } from "@/components/layout/page-header";
+import { PageContainer } from "@/components/shared/page-container";
+import { StatRow } from "@/components/shared/stat-row";
 import { useDemo } from "@/lib/demo-context";
 import {
   type DateRange,
@@ -252,18 +254,18 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div>
+      <PageContainer>
         <PageHeader title="Fleet Dashboard" />
         <h1 className="mb-4 text-xl font-bold md:hidden">Fleet Dashboard</h1>
         <DateRangePicker value={dateRange} onChange={setDateRange} className="mb-6" />
         <DataListSkeleton rows={3} />
-      </div>
+      </PageContainer>
     );
   }
 
   if (!data || data.trucks.length === 0) {
     return (
-      <div>
+      <PageContainer>
         <PageHeader title="Fleet Dashboard" />
         <h1 className="mb-4 text-xl font-bold md:hidden">Fleet Dashboard</h1>
         <EmptyState
@@ -278,7 +280,7 @@ export default function DashboardPage() {
             </Link>
           }
         />
-      </div>
+      </PageContainer>
     );
   }
 
@@ -304,7 +306,7 @@ export default function DashboardPage() {
   const expenseTotal = expenseRows.reduce((s, r) => s + r.value, 0);
 
   return (
-    <div>
+    <PageContainer>
       <PageHeader title="Fleet Dashboard" actions={desktopExportButtons} />
 
       {/* Mobile title bar */}
@@ -315,22 +317,43 @@ export default function DashboardPage() {
 
       <DateRangePicker value={dateRange} onChange={setDateRange} className="mb-6" />
 
-      {/* Summary cards */}
-      <div className="mb-6 grid gap-3 grid-cols-3">
+      {/* Summary — stacked rows on mobile, 3-up cards on sm+ */}
+      <div className="mb-6 space-y-2 sm:hidden">
+        <StatRow
+          icon={<TrendingUp className="h-4 w-4 text-green-600" />}
+          label="Gross"
+          value={formatCurrency(totals.grossPay)}
+          tone="positive"
+        />
+        <StatRow
+          icon={<TrendingDown className="h-4 w-4 text-red-500" />}
+          label="Deductions"
+          value={formatCurrency(totals.totalDeductions)}
+          tone="negative"
+        />
+        <StatRow
+          icon={<DollarSign className="h-4 w-4 text-blue-600" />}
+          label="Net Pay"
+          value={formatCurrency(totals.netPay)}
+          tone={totals.netPay >= 0 ? "positive" : "negative"}
+          highlight
+        />
+      </div>
+      <div className="mb-6 hidden gap-3 sm:grid sm:grid-cols-3">
         <SummaryStat
-          icon={<TrendingUp className="h-4 w-4 text-green-600 sm:h-5 sm:w-5" />}
+          icon={<TrendingUp className="h-5 w-5 text-green-600" />}
           label="Gross"
           value={totals.grossPay}
           tone="positive"
         />
         <SummaryStat
-          icon={<TrendingDown className="h-4 w-4 text-red-500 sm:h-5 sm:w-5" />}
+          icon={<TrendingDown className="h-5 w-5 text-red-500" />}
           label="Deductions"
           value={totals.totalDeductions}
           tone="negative"
         />
         <SummaryStat
-          icon={<DollarSign className="h-4 w-4 text-blue-600 sm:h-5 sm:w-5" />}
+          icon={<DollarSign className="h-5 w-5 text-blue-600" />}
           label="Net Pay"
           value={totals.netPay}
           tone={totals.netPay >= 0 ? "positive" : "negative"}
@@ -578,7 +601,7 @@ export default function DashboardPage() {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 }
 
