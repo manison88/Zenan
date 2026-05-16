@@ -19,10 +19,18 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
+  DialogBody,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/shared/empty-state";
+import {
+  DataList,
+  DataListCard,
+  DataListSkeleton,
+} from "@/components/shared/data-list";
+import { OverflowMenu } from "@/components/ui/overflow-menu";
+import { ConfirmSheet } from "@/components/ui/confirm-sheet";
 import {
   Plus,
   Pencil,
@@ -33,7 +41,7 @@ import {
   Clock,
   CalendarCheck,
 } from "lucide-react";
-import { formatDate, formatCurrency } from "@/lib/date-utils";
+import { formatDate, formatDateShort, formatCurrency } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 
 interface Repair {
@@ -110,8 +118,9 @@ export default function RepairsPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-12">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      <div>
+        <ViewToggle view={view} onChange={setView} />
+        <DataListSkeleton rows={4} />
       </div>
     );
   }
@@ -149,12 +158,12 @@ function ViewToggle({
   onChange: (v: "repairs" | "maintenance") => void;
 }) {
   return (
-    <div className="mb-4 inline-flex rounded-lg border bg-muted/30 p-1">
+    <div className="mb-4 inline-flex w-full rounded-lg border bg-muted/30 p-1 sm:w-auto">
       <button
         type="button"
         onClick={() => onChange("repairs")}
         className={cn(
-          "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+          "flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors sm:flex-none",
           view === "repairs"
             ? "bg-background shadow-sm"
             : "text-muted-foreground hover:text-foreground"
@@ -166,7 +175,7 @@ function ViewToggle({
         type="button"
         onClick={() => onChange("maintenance")}
         className={cn(
-          "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+          "flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors sm:flex-none",
           view === "maintenance"
             ? "bg-background shadow-sm"
             : "text-muted-foreground hover:text-foreground"
@@ -178,7 +187,7 @@ function ViewToggle({
   );
 }
 
-// ── Repairs section (existing behaviour, factored out) ──────────────────────
+// ── Repairs section ─────────────────────────────────────────────────────────
 function RepairsSection({
   truckId,
   repairs,
@@ -197,6 +206,7 @@ function RepairsSection({
   const [form, setForm] = useState(emptyRepairForm);
   const [showNewType, setShowNewType] = useState(false);
   const [newTypeName, setNewTypeName] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   function openAdd() {
     setEditing(null);
@@ -258,7 +268,6 @@ function RepairsSection({
   }
 
   async function handleDelete(id: number) {
-    if (!confirm("Delete this repair?")) return;
     await fetch(`/api/repairs/${id}`, { method: "DELETE" });
     onChange();
   }
@@ -271,155 +280,193 @@ function RepairsSection({
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
-        <div>
+      <div className="mb-4 flex items-start justify-between gap-2">
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold">Repairs</h2>
           {repairs.length > 0 && (
             <p className="text-sm text-muted-foreground">
-              {repairs.length} repairs | {formatCurrency(totalAmount)}
+              {repairs.length} repairs · {formatCurrency(totalAmount)}
             </p>
           )}
         </div>
-        <Button onClick={openAdd} size="sm">
+        <Button onClick={openAdd} size="sm" className="shrink-0">
           <Plus className="h-4 w-4" /> Add Repair
         </Button>
       </div>
 
-      {repairs.length === 0 ? (
-        <EmptyState
-          icon={<Wrench className="h-12 w-12" />}
-          title="No repairs logged"
-          description="Track unexpected repair costs as they happen"
-          action={
-            <Button onClick={openAdd}>
-              <Plus className="h-4 w-4" /> Add Repair
-            </Button>
-          }
-        />
-      ) : (
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Notes</TableHead>
-                  <TableHead className="w-[80px]" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {repairs.map((repair) => (
-                  <TableRow key={repair.id}>
-                    <TableCell>{formatDate(repair.date)}</TableCell>
-                    <TableCell>{repair.repairTypeName || "Unknown"}</TableCell>
-                    <TableCell className="text-right font-medium">
-                      {formatCurrency(repair.amount)}
-                    </TableCell>
-                    <TableCell className="max-w-[200px] truncate text-muted-foreground">
-                      {repair.notes || "-"}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => openEdit(repair)}
-                          className="rounded p-1 hover:bg-accent"
-                          aria-label="Edit"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(repair.id)}
-                          className="rounded p-1 text-destructive hover:bg-destructive/10"
-                          aria-label="Delete"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </TableCell>
+      <DataList
+        items={repairs}
+        getKey={(r) => r.id}
+        emptyState={
+          <EmptyState
+            icon={<Wrench className="h-12 w-12" />}
+            title="No repairs logged"
+            description="Track unexpected repair costs as they happen"
+            action={
+              <Button onClick={openAdd}>
+                <Plus className="h-4 w-4" /> Add Repair
+              </Button>
+            }
+          />
+        }
+        renderCard={(repair) => (
+          <DataListCard
+            primary={
+              <>
+                {formatDateShort(repair.date)} ·{" "}
+                {repair.repairTypeName || "Unknown"}
+              </>
+            }
+            trailing={formatCurrency(repair.amount)}
+            secondary={repair.notes || null}
+            actions={
+              <OverflowMenu
+                actions={[
+                  {
+                    label: "Edit",
+                    icon: <Pencil className="h-4 w-4" />,
+                    onClick: () => openEdit(repair),
+                  },
+                  {
+                    label: "Delete",
+                    icon: <Trash2 className="h-4 w-4" />,
+                    destructive: true,
+                    onClick: () => setConfirmDeleteId(repair.id),
+                  },
+                ]}
+              />
+            }
+          />
+        )}
+        renderTable={() => (
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Notes</TableHead>
+                    <TableHead className="w-[80px]" />
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
+                </TableHeader>
+                <TableBody>
+                  {repairs.map((repair) => (
+                    <TableRow key={repair.id}>
+                      <TableCell>{formatDate(repair.date)}</TableCell>
+                      <TableCell>{repair.repairTypeName || "Unknown"}</TableCell>
+                      <TableCell className="text-right font-medium">
+                        {formatCurrency(repair.amount)}
+                      </TableCell>
+                      <TableCell className="max-w-[200px] truncate text-muted-foreground">
+                        {repair.notes || "-"}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => openEdit(repair)}
+                            className="rounded p-1 hover:bg-accent"
+                            aria-label="Edit"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setConfirmDeleteId(repair.id)}
+                            className="rounded p-1 text-destructive hover:bg-destructive/10"
+                            aria-label="Delete"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
+      />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent onClose={() => setDialogOpen(false)}>
           <DialogHeader>
             <DialogTitle>{editing ? "Edit Repair" : "Add Repair"}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Date</Label>
-                <Input
-                  type="date"
-                  value={form.date}
-                  onChange={(e) => updateForm("date", e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Amount ($)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={form.amount}
-                  onChange={(e) => updateForm("amount", e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Repair Type</Label>
-              <div className="flex gap-2">
-                <Select
-                  value={form.repairTypeId}
-                  onChange={(e) => updateForm("repairTypeId", e.target.value)}
-                  required
-                  className="flex-1"
-                >
-                  <option value="">Select type</option>
-                  {repairTypes.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </Select>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowNewType(!showNewType)}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-              {showNewType && (
-                <div className="flex gap-2">
+          <form onSubmit={handleSubmit} className="flex flex-1 flex-col min-h-0">
+            <DialogBody className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Date</Label>
                   <Input
-                    placeholder="New type name"
-                    value={newTypeName}
-                    onChange={(e) => setNewTypeName(e.target.value)}
-                    className="flex-1"
+                    type="date"
+                    value={form.date}
+                    onChange={(e) => updateForm("date", e.target.value)}
+                    required
                   />
-                  <Button type="button" size="sm" onClick={handleAddType}>
-                    Add
+                </div>
+                <div className="space-y-2">
+                  <Label>Amount ($)</Label>
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    value={form.amount}
+                    onChange={(e) => updateForm("amount", e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Repair Type</Label>
+                <div className="flex gap-2">
+                  <Select
+                    value={form.repairTypeId}
+                    onChange={(e) => updateForm("repairTypeId", e.target.value)}
+                    required
+                    className="flex-1"
+                  >
+                    <option value="">Select type</option>
+                    {repairTypes.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setShowNewType(!showNewType)}
+                    aria-label="Add new type"
+                  >
+                    <Plus className="h-4 w-4" />
                   </Button>
                 </div>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>Notes (optional)</Label>
-              <Input
-                value={form.notes}
-                onChange={(e) => updateForm("notes", e.target.value)}
-                placeholder="Additional details"
-              />
-            </div>
+                {showNewType && (
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="New type name"
+                      value={newTypeName}
+                      onChange={(e) => setNewTypeName(e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button type="button" size="sm" onClick={handleAddType}>
+                      Add
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Notes (optional)</Label>
+                <Input
+                  value={form.notes}
+                  onChange={(e) => updateForm("notes", e.target.value)}
+                  placeholder="Additional details"
+                />
+              </div>
+            </DialogBody>
             <DialogFooter>
               <Button
                 type="button"
@@ -433,11 +480,24 @@ function RepairsSection({
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmSheet
+        open={confirmDeleteId !== null}
+        onOpenChange={(open) => !open && setConfirmDeleteId(null)}
+        title="Delete repair?"
+        description="This cannot be undone."
+        confirmLabel="Delete"
+        destructive
+        onConfirm={() => {
+          if (confirmDeleteId !== null) handleDelete(confirmDeleteId);
+          setConfirmDeleteId(null);
+        }}
+      />
     </div>
   );
 }
 
-// ── Maintenance section (new) ───────────────────────────────────────────────
+// ── Maintenance section ─────────────────────────────────────────────────────
 function MaintenanceSection({
   truckId,
   logs,
@@ -457,6 +517,7 @@ function MaintenanceSection({
   const [showNewType, setShowNewType] = useState(false);
   const [newTypeName, setNewTypeName] = useState("");
   const [formError, setFormError] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   function openAdd() {
     setEditing(null);
@@ -547,7 +608,6 @@ function MaintenanceSection({
   }
 
   async function handleDelete(id: number) {
-    if (!confirm("Delete this maintenance entry?")) return;
     await fetch(`/api/maintenance/${id}`, { method: "DELETE" });
     onChange();
   }
@@ -556,7 +616,6 @@ function MaintenanceSection({
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
-  // Compute upcoming: most-recent-per-type with a next-due value.
   const seen = new Set<number>();
   const upcoming = logs
     .filter((l) => {
@@ -574,8 +633,8 @@ function MaintenanceSection({
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
-        <div>
+      <div className="mb-4 flex items-start justify-between gap-2">
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold">Maintenance</h2>
           {logs.length > 0 && (
             <p className="text-sm text-muted-foreground">
@@ -584,8 +643,8 @@ function MaintenanceSection({
             </p>
           )}
         </div>
-        <Button onClick={openAdd} size="sm">
-          <Plus className="h-4 w-4" /> Add Maintenance
+        <Button onClick={openAdd} size="sm" className="shrink-0">
+          <Plus className="h-4 w-4" /> Add
         </Button>
       </div>
 
@@ -623,67 +682,121 @@ function MaintenanceSection({
             <h3 className="mb-2 text-sm font-semibold text-muted-foreground">
               History
             </h3>
-            <Card>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Service Date</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead className="text-right">Odometer</TableHead>
-                      <TableHead className="text-right">Cost</TableHead>
-                      <TableHead>Next Due</TableHead>
-                      <TableHead>Notes</TableHead>
-                      <TableHead className="w-[80px]" />
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {logs.map((log) => (
-                      <TableRow key={log.id}>
-                        <TableCell>
-                          {log.serviceDate ? formatDate(log.serviceDate) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell>{log.repairTypeName || "Unknown"}</TableCell>
-                        <TableCell className="text-right">
-                          {log.serviceOdometer != null
-                            ? log.serviceOdometer.toLocaleString()
-                            : "—"}
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {log.cost ? formatCurrency(log.cost) : "—"}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {formatNextDue(log)}
-                        </TableCell>
-                        <TableCell className="max-w-[200px] truncate text-muted-foreground">
-                          {log.notes || "-"}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <button
-                              onClick={() => openEdit(log)}
-                              className="rounded p-1 hover:bg-accent"
-                              aria-label="Edit"
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(log.id)}
-                              className="rounded p-1 text-destructive hover:bg-destructive/10"
-                              aria-label="Delete"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+            <DataList
+              items={logs}
+              getKey={(l) => l.id}
+              renderCard={(log) => (
+                <DataListCard
+                  primary={
+                    <>
+                      {log.serviceDate
+                        ? formatDateShort(log.serviceDate)
+                        : "Scheduled"}{" "}
+                      · {log.repairTypeName || "Unknown"}
+                    </>
+                  }
+                  trailing={log.cost ? formatCurrency(log.cost) : null}
+                  secondary={
+                    <>
+                      {log.serviceOdometer != null && (
+                        <>at {log.serviceOdometer.toLocaleString()} mi</>
+                      )}
+                      {log.serviceOdometer != null &&
+                        (log.nextDueDate || log.nextDueOdometer != null) &&
+                        " · "}
+                      {(log.nextDueDate || log.nextDueOdometer != null) && (
+                        <>Next: {formatNextDue(log)}</>
+                      )}
+                    </>
+                  }
+                  meta={log.notes || null}
+                  actions={
+                    <OverflowMenu
+                      actions={[
+                        {
+                          label: "Edit",
+                          icon: <Pencil className="h-4 w-4" />,
+                          onClick: () => openEdit(log),
+                        },
+                        {
+                          label: "Delete",
+                          icon: <Trash2 className="h-4 w-4" />,
+                          destructive: true,
+                          onClick: () => setConfirmDeleteId(log.id),
+                        },
+                      ]}
+                    />
+                  }
+                />
+              )}
+              renderTable={() => (
+                <Card>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Service Date</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead className="text-right">Odometer</TableHead>
+                          <TableHead className="text-right">Cost</TableHead>
+                          <TableHead>Next Due</TableHead>
+                          <TableHead>Notes</TableHead>
+                          <TableHead className="w-[80px]" />
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {logs.map((log) => (
+                          <TableRow key={log.id}>
+                            <TableCell>
+                              {log.serviceDate ? (
+                                formatDate(log.serviceDate)
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {log.repairTypeName || "Unknown"}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {log.serviceOdometer != null
+                                ? log.serviceOdometer.toLocaleString()
+                                : "—"}
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              {log.cost ? formatCurrency(log.cost) : "—"}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {formatNextDue(log)}
+                            </TableCell>
+                            <TableCell className="max-w-[200px] truncate text-muted-foreground">
+                              {log.notes || "-"}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1">
+                                <button
+                                  onClick={() => openEdit(log)}
+                                  className="rounded p-1 hover:bg-accent"
+                                  aria-label="Edit"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => setConfirmDeleteId(log.id)}
+                                  className="rounded p-1 text-destructive hover:bg-destructive/10"
+                                  aria-label="Delete"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              )}
+            />
           </section>
         </div>
       )}
@@ -695,125 +808,128 @@ function MaintenanceSection({
               {editing ? "Edit Maintenance" : "Add Maintenance"}
             </DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label>Type</Label>
-              <div className="flex gap-2">
-                <Select
-                  value={form.repairTypeId}
-                  onChange={(e) => updateForm("repairTypeId", e.target.value)}
-                  required
-                  className="flex-1"
-                >
-                  <option value="">Select type</option>
-                  {repairTypes.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </Select>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowNewType(!showNewType)}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-              {showNewType && (
+          <form onSubmit={handleSubmit} className="flex flex-1 flex-col min-h-0">
+            <DialogBody className="space-y-4">
+              <div className="space-y-2">
+                <Label>Type</Label>
                 <div className="flex gap-2">
-                  <Input
-                    placeholder="New type name"
-                    value={newTypeName}
-                    onChange={(e) => setNewTypeName(e.target.value)}
+                  <Select
+                    value={form.repairTypeId}
+                    onChange={(e) => updateForm("repairTypeId", e.target.value)}
+                    required
                     className="flex-1"
-                  />
-                  <Button type="button" size="sm" onClick={handleAddType}>
-                    Add
+                  >
+                    <option value="">Select type</option>
+                    {repairTypes.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setShowNewType(!showNewType)}
+                    aria-label="Add new type"
+                  >
+                    <Plus className="h-4 w-4" />
                   </Button>
                 </div>
-              )}
-            </div>
+                {showNewType && (
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="New type name"
+                      value={newTypeName}
+                      onChange={(e) => setNewTypeName(e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button type="button" size="sm" onClick={handleAddType}>
+                      Add
+                    </Button>
+                  </div>
+                )}
+              </div>
 
-            <fieldset className="space-y-3 rounded-lg border p-3">
-              <legend className="px-1 text-xs font-medium text-muted-foreground">
-                Service performed (optional)
-              </legend>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Date</Label>
-                  <Input
-                    type="date"
-                    value={form.serviceDate}
-                    onChange={(e) => updateForm("serviceDate", e.target.value)}
-                  />
+              <fieldset className="space-y-3 rounded-lg border p-3">
+                <legend className="px-1 text-xs font-medium text-muted-foreground">
+                  Service performed (optional)
+                </legend>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Date</Label>
+                    <Input
+                      type="date"
+                      value={form.serviceDate}
+                      onChange={(e) => updateForm("serviceDate", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Odometer</Label>
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      value={form.serviceOdometer}
+                      onChange={(e) =>
+                        updateForm("serviceOdometer", e.target.value)
+                      }
+                      placeholder="e.g. 145000"
+                    />
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Odometer</Label>
+                  <Label>Cost ($)</Label>
                   <Input
                     type="number"
                     inputMode="decimal"
-                    value={form.serviceOdometer}
-                    onChange={(e) =>
-                      updateForm("serviceOdometer", e.target.value)
-                    }
-                    placeholder="e.g. 145000"
+                    step="0.01"
+                    value={form.cost}
+                    onChange={(e) => updateForm("cost", e.target.value)}
                   />
                 </div>
-              </div>
+              </fieldset>
+
+              <fieldset className="space-y-3 rounded-lg border p-3">
+                <legend className="px-1 text-xs font-medium text-muted-foreground">
+                  Next due (optional)
+                </legend>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Date</Label>
+                    <Input
+                      type="date"
+                      value={form.nextDueDate}
+                      onChange={(e) => updateForm("nextDueDate", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Odometer</Label>
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      value={form.nextDueOdometer}
+                      onChange={(e) =>
+                        updateForm("nextDueOdometer", e.target.value)
+                      }
+                      placeholder="e.g. 150000"
+                    />
+                  </div>
+                </div>
+              </fieldset>
+
               <div className="space-y-2">
-                <Label>Cost ($)</Label>
+                <Label>Notes (optional)</Label>
                 <Input
-                  type="number"
-                  step="0.01"
-                  value={form.cost}
-                  onChange={(e) => updateForm("cost", e.target.value)}
+                  value={form.notes}
+                  onChange={(e) => updateForm("notes", e.target.value)}
+                  placeholder="Additional details"
                 />
               </div>
-            </fieldset>
 
-            <fieldset className="space-y-3 rounded-lg border p-3">
-              <legend className="px-1 text-xs font-medium text-muted-foreground">
-                Next due (optional)
-              </legend>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Date</Label>
-                  <Input
-                    type="date"
-                    value={form.nextDueDate}
-                    onChange={(e) => updateForm("nextDueDate", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Odometer</Label>
-                  <Input
-                    type="number"
-                    inputMode="decimal"
-                    value={form.nextDueOdometer}
-                    onChange={(e) =>
-                      updateForm("nextDueOdometer", e.target.value)
-                    }
-                    placeholder="e.g. 150000"
-                  />
-                </div>
-              </div>
-            </fieldset>
-
-            <div className="space-y-2">
-              <Label>Notes (optional)</Label>
-              <Input
-                value={form.notes}
-                onChange={(e) => updateForm("notes", e.target.value)}
-                placeholder="Additional details"
-              />
-            </div>
-
-            {formError && (
-              <p className="text-sm text-destructive">{formError}</p>
-            )}
-
+              {formError && (
+                <p className="text-sm text-destructive">{formError}</p>
+              )}
+            </DialogBody>
             <DialogFooter>
               <Button
                 type="button"
@@ -827,6 +943,19 @@ function MaintenanceSection({
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmSheet
+        open={confirmDeleteId !== null}
+        onOpenChange={(open) => !open && setConfirmDeleteId(null)}
+        title="Delete maintenance entry?"
+        description="This cannot be undone."
+        confirmLabel="Delete"
+        destructive
+        onConfirm={() => {
+          if (confirmDeleteId !== null) handleDelete(confirmDeleteId);
+          setConfirmDeleteId(null);
+        }}
+      />
     </div>
   );
 }
@@ -860,13 +989,13 @@ function UpcomingCard({
     >
       <UrgencyIcon urgency={urgency} />
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="truncate font-semibold">
             {item.repairTypeName || "Maintenance"}
           </span>
           <UrgencyBadge urgency={urgency} />
         </div>
-        <div className="mt-0.5 text-sm text-muted-foreground">
+        <div className="mt-0.5 text-sm text-muted-foreground break-words">
           {item.nextDueDate && (
             <span>
               Due {formatDate(item.nextDueDate)}
@@ -900,7 +1029,9 @@ function UrgencyIcon({
     return <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />;
   if (urgency === "due_soon")
     return <Clock className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />;
-  return <CalendarCheck className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />;
+  return (
+    <CalendarCheck className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+  );
 }
 
 function UrgencyBadge({
