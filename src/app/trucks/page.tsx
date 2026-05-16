@@ -60,10 +60,8 @@ export default function TrucksPage() {
     <PageContainer>
       <PageHeader title="Trucks" subtitle="Manage your fleet vehicles" actions={addButton} />
 
-      {/* Mobile-only header (desktop uses PageHeader) */}
-      <div className="mb-4 flex items-center justify-between md:hidden">
-        <h1 className="text-xl font-bold">Trucks</h1>
-      </div>
+      {/* On mobile, TopBar shows "Trucks" and the FAB handles "Add Truck"
+          — no duplicate inline header needed. */}
 
       {loading ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
