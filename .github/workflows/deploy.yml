@@ -1,9 +1,12 @@
 name: Deploy to Cloudflare Workers
 
 on:
-  push:
-    branches:
-      - claude/truck-fleet-management-GPylo
+  # Auto-deploy on push is DISABLED. After the redesign regression we
+  # re-do mobile UI conservatively, screen-by-screen, with manual
+  # dispatch only. To re-enable continuous deploys, uncomment below.
+  # push:
+  #   branches:
+  #     - claude/truck-fleet-management-GPylo
   workflow_dispatch:
     inputs:
       ref:
