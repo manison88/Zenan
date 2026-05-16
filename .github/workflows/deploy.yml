@@ -64,7 +64,10 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          LATEST=$(npx wrangler deployments list --name zenan-fleet 2>&1 | grep -m1 "Version(s):" | grep -oE "[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}")
+          # wrangler prints deployments oldest-first, so the *last* Version(s)
+          # line is the newest deployment. Earlier `grep -m1` grabbed the
+          # oldest one and produced a false-negative.
+          LATEST=$(npx wrangler deployments list --name zenan-fleet 2>&1 | grep "Version(s):" | tail -1 | grep -oE "[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}")
           EXPECTED="${{ steps.deploy.outputs.version_id }}"
           echo "Expected version: $EXPECTED"
           echo "Latest on Cloudflare: $LATEST"
