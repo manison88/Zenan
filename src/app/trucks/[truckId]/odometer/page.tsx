@@ -23,7 +23,9 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/shared/empty-state";
-import { DataList, DataListCard, DataListSkeleton } from "@/components/shared/data-list";
+import { DataListCard, DataListSkeleton } from "@/components/shared/data-list";
+import { MonthGroupedList } from "@/components/shared/month-grouped-list";
+import { FloatingActionButton } from "@/components/shared/fab";
 import { OverflowMenu } from "@/components/ui/overflow-menu";
 import { ConfirmSheet } from "@/components/ui/confirm-sheet";
 import { Plus, Pencil, Trash2, Gauge } from "lucide-react";
@@ -53,6 +55,7 @@ export default function OdometerPage() {
 
   useEffect(() => {
     fetchLogs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [truckId]);
 
   async function fetchLogs() {
@@ -109,62 +112,71 @@ export default function OdometerPage() {
     setLogs(logs.filter((l) => l.id !== id));
   }
 
+  function renderCard(log: OdometerLog) {
+    return (
+      <DataListCard
+        primary={`Week of ${formatDate(log.weekStartDate)}`}
+        trailing={`${(log.endingReading - log.startingReading).toLocaleString()} mi`}
+        secondary={
+          <>
+            {log.startingReading.toLocaleString()} → {log.endingReading.toLocaleString()}
+          </>
+        }
+        actions={
+          <OverflowMenu
+            actions={[
+              {
+                label: "Edit",
+                icon: <Pencil className="h-4 w-4" />,
+                onClick: () => openEdit(log),
+              },
+              {
+                label: "Delete",
+                icon: <Trash2 className="h-4 w-4" />,
+                destructive: true,
+                onClick: () => setConfirmDeleteId(log.id),
+              },
+            ]}
+          />
+        }
+      />
+    );
+  }
+
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between gap-2">
+      <div className="mb-4 flex items-start justify-between gap-2">
         <h2 className="text-lg font-semibold">Weekly Odometer</h2>
-        <Button onClick={openAdd} size="sm">
+        <Button onClick={openAdd} size="sm" className="hidden shrink-0 md:inline-flex">
           <Plus className="h-4 w-4" /> Add Entry
         </Button>
       </div>
 
       {loading ? (
         <DataListSkeleton rows={4} />
-      ) : (
-        <DataList
-          items={logs}
-          getKey={(log) => log.id}
-          emptyState={
-            <EmptyState
-              icon={<Gauge className="h-12 w-12" />}
-              title="No odometer entries"
-              description="Log your weekly starting and ending miles"
-              action={
-                <Button onClick={openAdd}>
-                  <Plus className="h-4 w-4" /> Add Entry
-                </Button>
-              }
-            />
+      ) : logs.length === 0 ? (
+        <EmptyState
+          icon={<Gauge className="h-12 w-12" />}
+          title="No odometer entries"
+          description="Log your weekly starting and ending miles"
+          action={
+            <Button onClick={openAdd}>
+              <Plus className="h-4 w-4" /> Add Entry
+            </Button>
           }
-          renderCard={(log) => (
-            <DataListCard
-              primary={`Week of ${formatDate(log.weekStartDate)}`}
-              trailing={`${(log.endingReading - log.startingReading).toLocaleString()} mi`}
-              secondary={
-                <>
-                  {log.startingReading.toLocaleString()} → {log.endingReading.toLocaleString()}
-                </>
-              }
-              actions={
-                <OverflowMenu
-                  actions={[
-                    {
-                      label: "Edit",
-                      icon: <Pencil className="h-4 w-4" />,
-                      onClick: () => openEdit(log),
-                    },
-                    {
-                      label: "Delete",
-                      icon: <Trash2 className="h-4 w-4" />,
-                      destructive: true,
-                      onClick: () => setConfirmDeleteId(log.id),
-                    },
-                  ]}
-                />
-              }
+        />
+      ) : (
+        <>
+          <div className="md:hidden">
+            <MonthGroupedList
+              items={logs}
+              getKey={(l) => l.id}
+              getDate={(l) => l.weekStartDate}
+              renderItem={renderCard}
             />
-          )}
-          renderTable={() => (
+          </div>
+
+          <div className="hidden md:block">
             <Card>
               <CardContent className="p-0">
                 <Table>
@@ -201,7 +213,7 @@ export default function OdometerPage() {
                             </button>
                             <button
                               onClick={() => setConfirmDeleteId(log.id)}
-                              className="rounded p-1 hover:bg-destructive/10 text-destructive"
+                              className="rounded p-1 text-destructive hover:bg-destructive/10"
                               aria-label="Delete"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
@@ -214,16 +226,20 @@ export default function OdometerPage() {
                 </Table>
               </CardContent>
             </Card>
-          )}
-        />
+          </div>
+        </>
       )}
+
+      <FloatingActionButton
+        onClick={openAdd}
+        label="Add Odometer Entry"
+        icon={<Plus className="h-6 w-6" />}
+      />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent onClose={() => setDialogOpen(false)}>
           <DialogHeader>
-            <DialogTitle>
-              {editing ? "Edit Odometer Entry" : "Add Odometer Entry"}
-            </DialogTitle>
+            <DialogTitle>{editing ? "Edit Odometer Entry" : "Add Odometer Entry"}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="flex flex-1 flex-col min-h-0">
             <DialogBody className="space-y-4">
@@ -232,9 +248,7 @@ export default function OdometerPage() {
                 <Input
                   type="date"
                   value={form.weekStartDate}
-                  onChange={(e) =>
-                    setForm({ ...form, weekStartDate: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, weekStartDate: e.target.value })}
                   required
                 />
               </div>
@@ -246,9 +260,7 @@ export default function OdometerPage() {
                     inputMode="numeric"
                     step="0.1"
                     value={form.startingReading}
-                    onChange={(e) =>
-                      setForm({ ...form, startingReading: e.target.value })
-                    }
+                    onChange={(e) => setForm({ ...form, startingReading: e.target.value })}
                     required
                   />
                 </div>
@@ -259,20 +271,14 @@ export default function OdometerPage() {
                     inputMode="numeric"
                     step="0.1"
                     value={form.endingReading}
-                    onChange={(e) =>
-                      setForm({ ...form, endingReading: e.target.value })
-                    }
+                    onChange={(e) => setForm({ ...form, endingReading: e.target.value })}
                     required
                   />
                 </div>
               </div>
             </DialogBody>
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setDialogOpen(false)}
-              >
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel
               </Button>
               <Button type="submit">{editing ? "Update" : "Add"}</Button>

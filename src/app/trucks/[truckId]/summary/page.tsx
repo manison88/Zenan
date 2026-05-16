@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/dashboard/date-range-picker";
 import { DataListSkeleton } from "@/components/shared/data-list";
+import { StatRow } from "@/components/shared/stat-row";
 import {
   type DateRange,
   getPresetRange,
@@ -69,29 +70,52 @@ export default function TruckSummaryPage() {
 
       {loading ? (
         <div className="space-y-4">
-          <div className="grid gap-3 grid-cols-3">
+          <div className="space-y-2">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-20 rounded-xl border bg-card animate-pulse" />
+              <div key={i} className="h-16 rounded-xl border bg-card animate-pulse" />
             ))}
           </div>
           <DataListSkeleton rows={4} />
         </div>
       ) : summary ? (
         <div className="space-y-4">
-          <div className="grid gap-3 grid-cols-3">
+          {/* Mobile: stacked rows */}
+          <div className="space-y-2 sm:hidden">
+            <StatRow
+              icon={<TrendingUp className="h-4 w-4 text-green-600" />}
+              label="Gross"
+              value={formatCurrency(summary.grossPay)}
+              tone="positive"
+            />
+            <StatRow
+              icon={<TrendingDown className="h-4 w-4 text-red-500" />}
+              label="Deductions"
+              value={formatCurrency(summary.totalDeductions)}
+              tone="negative"
+            />
+            <StatRow
+              icon={<DollarSign className="h-4 w-4 text-blue-600" />}
+              label="Net Pay"
+              value={formatCurrency(summary.netPay)}
+              tone={summary.netPay >= 0 ? "positive" : "negative"}
+              highlight
+            />
+          </div>
+          {/* Desktop: 3-up cards */}
+          <div className="hidden gap-3 sm:grid sm:grid-cols-3">
             <SummaryCard
-              icon={<TrendingUp className="h-4 w-4 text-green-600 sm:h-5 sm:w-5" />}
+              icon={<TrendingUp className="h-5 w-5 text-green-600" />}
               label="Gross"
               value={summary.grossPay}
               positive
             />
             <SummaryCard
-              icon={<TrendingDown className="h-4 w-4 text-red-500 sm:h-5 sm:w-5" />}
+              icon={<TrendingDown className="h-5 w-5 text-red-500" />}
               label="Deductions"
               value={summary.totalDeductions}
             />
             <SummaryCard
-              icon={<DollarSign className="h-4 w-4 text-blue-600 sm:h-5 sm:w-5" />}
+              icon={<DollarSign className="h-5 w-5 text-blue-600" />}
               label="Net Pay"
               value={summary.netPay}
               positive={summary.netPay >= 0}

@@ -25,10 +25,11 @@ import {
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import {
-  DataList,
   DataListCard,
   DataListSkeleton,
 } from "@/components/shared/data-list";
+import { MonthGroupedList } from "@/components/shared/month-grouped-list";
+import { FloatingActionButton } from "@/components/shared/fab";
 import { OverflowMenu } from "@/components/ui/overflow-menu";
 import { ConfirmSheet } from "@/components/ui/confirm-sheet";
 import {
@@ -149,7 +150,6 @@ export default function RepairsPage() {
   );
 }
 
-// ── View toggle ─────────────────────────────────────────────────────────────
 function ViewToggle({
   view,
   onChange,
@@ -158,7 +158,7 @@ function ViewToggle({
   onChange: (v: "repairs" | "maintenance") => void;
 }) {
   return (
-    <div className="mb-4 inline-flex w-full rounded-lg border bg-muted/30 p-1 sm:w-auto">
+    <div className="mb-4 flex w-full rounded-lg border bg-muted/30 p-1 sm:inline-flex sm:w-auto">
       <button
         type="button"
         onClick={() => onChange("repairs")}
@@ -187,7 +187,6 @@ function ViewToggle({
   );
 }
 
-// ── Repairs section ─────────────────────────────────────────────────────────
 function RepairsSection({
   truckId,
   repairs,
@@ -278,6 +277,41 @@ function RepairsSection({
 
   const totalAmount = repairs.reduce((s, r) => s + r.amount, 0);
 
+  function renderCard(repair: Repair) {
+    return (
+      <DataListCard
+        primary={
+          <span className="break-words">
+            {formatDateShort(repair.date)} · {repair.repairTypeName || "Unknown"}
+          </span>
+        }
+        trailing={formatCurrency(repair.amount)}
+        secondary={
+          repair.notes ? (
+            <span className="line-clamp-2 break-words">{repair.notes}</span>
+          ) : null
+        }
+        actions={
+          <OverflowMenu
+            actions={[
+              {
+                label: "Edit",
+                icon: <Pencil className="h-4 w-4" />,
+                onClick: () => openEdit(repair),
+              },
+              {
+                label: "Delete",
+                icon: <Trash2 className="h-4 w-4" />,
+                destructive: true,
+                onClick: () => setConfirmDeleteId(repair.id),
+              },
+            ]}
+          />
+        }
+      />
+    );
+  }
+
   return (
     <div>
       <div className="mb-4 flex items-start justify-between gap-2">
@@ -289,104 +323,89 @@ function RepairsSection({
             </p>
           )}
         </div>
-        <Button onClick={openAdd} size="sm" className="shrink-0">
+        <Button onClick={openAdd} size="sm" className="hidden shrink-0 md:inline-flex">
           <Plus className="h-4 w-4" /> Add Repair
         </Button>
       </div>
 
-      <DataList
-        items={repairs}
-        getKey={(r) => r.id}
-        emptyState={
-          <EmptyState
-            icon={<Wrench className="h-12 w-12" />}
-            title="No repairs logged"
-            description="Track unexpected repair costs as they happen"
-            action={
-              <Button onClick={openAdd}>
-                <Plus className="h-4 w-4" /> Add Repair
-              </Button>
-            }
-          />
-        }
-        renderCard={(repair) => (
-          <DataListCard
-            primary={
-              <>
-                {formatDateShort(repair.date)} ·{" "}
-                {repair.repairTypeName || "Unknown"}
-              </>
-            }
-            trailing={formatCurrency(repair.amount)}
-            secondary={repair.notes || null}
-            actions={
-              <OverflowMenu
-                actions={[
-                  {
-                    label: "Edit",
-                    icon: <Pencil className="h-4 w-4" />,
-                    onClick: () => openEdit(repair),
-                  },
-                  {
-                    label: "Delete",
-                    icon: <Trash2 className="h-4 w-4" />,
-                    destructive: true,
-                    onClick: () => setConfirmDeleteId(repair.id),
-                  },
-                ]}
-              />
-            }
-          />
-        )}
-        renderTable={() => (
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Notes</TableHead>
-                    <TableHead className="w-[80px]" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {repairs.map((repair) => (
-                    <TableRow key={repair.id}>
-                      <TableCell>{formatDate(repair.date)}</TableCell>
-                      <TableCell>{repair.repairTypeName || "Unknown"}</TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatCurrency(repair.amount)}
-                      </TableCell>
-                      <TableCell className="max-w-[200px] truncate text-muted-foreground">
-                        {repair.notes || "-"}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <button
-                            onClick={() => openEdit(repair)}
-                            className="rounded p-1 hover:bg-accent"
-                            aria-label="Edit"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setConfirmDeleteId(repair.id)}
-                            className="rounded p-1 text-destructive hover:bg-destructive/10"
-                            aria-label="Delete"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </TableCell>
+      {repairs.length === 0 ? (
+        <EmptyState
+          icon={<Wrench className="h-12 w-12" />}
+          title="No repairs logged"
+          description="Track unexpected repair costs as they happen"
+          action={
+            <Button onClick={openAdd}>
+              <Plus className="h-4 w-4" /> Add Repair
+            </Button>
+          }
+        />
+      ) : (
+        <>
+          <div className="md:hidden">
+            <MonthGroupedList
+              items={repairs}
+              getKey={(r) => r.id}
+              getDate={(r) => r.date}
+              renderItem={renderCard}
+            />
+          </div>
+
+          <div className="hidden md:block">
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead>Notes</TableHead>
+                      <TableHead className="w-[80px]" />
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        )}
+                  </TableHeader>
+                  <TableBody>
+                    {repairs.map((repair) => (
+                      <TableRow key={repair.id}>
+                        <TableCell>{formatDate(repair.date)}</TableCell>
+                        <TableCell>{repair.repairTypeName || "Unknown"}</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(repair.amount)}
+                        </TableCell>
+                        <TableCell className="max-w-[200px] truncate text-muted-foreground">
+                          {repair.notes || "-"}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => openEdit(repair)}
+                              className="rounded p-1 hover:bg-accent"
+                              aria-label="Edit"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setConfirmDeleteId(repair.id)}
+                              className="rounded p-1 text-destructive hover:bg-destructive/10"
+                              aria-label="Delete"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
+
+      <FloatingActionButton
+        onClick={openAdd}
+        label="Add Repair"
+        icon={<Plus className="h-6 w-6" />}
       />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -468,11 +487,7 @@ function RepairsSection({
               </div>
             </DialogBody>
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setDialogOpen(false)}
-              >
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel
               </Button>
               <Button type="submit">{editing ? "Update" : "Add"}</Button>
@@ -497,7 +512,6 @@ function RepairsSection({
   );
 }
 
-// ── Maintenance section ─────────────────────────────────────────────────────
 function MaintenanceSection({
   truckId,
   logs,
@@ -631,6 +645,51 @@ function MaintenanceSection({
 
   const totalCost = logs.reduce((s, l) => s + (l.cost || 0), 0);
 
+  function renderHistoryCard(log: MaintenanceLog) {
+    return (
+      <DataListCard
+        primary={
+          <span className="break-words">
+            {log.serviceDate ? formatDateShort(log.serviceDate) : "Scheduled"} ·{" "}
+            {log.repairTypeName || "Unknown"}
+          </span>
+        }
+        trailing={log.cost ? formatCurrency(log.cost) : null}
+        secondary={
+          <>
+            {log.serviceOdometer != null && (
+              <>at {log.serviceOdometer.toLocaleString()} mi</>
+            )}
+            {log.serviceOdometer != null &&
+              (log.nextDueDate || log.nextDueOdometer != null) &&
+              " · "}
+            {(log.nextDueDate || log.nextDueOdometer != null) && (
+              <>Next: {formatNextDue(log)}</>
+            )}
+          </>
+        }
+        meta={log.notes ? <span className="line-clamp-2 break-words">{log.notes}</span> : null}
+        actions={
+          <OverflowMenu
+            actions={[
+              {
+                label: "Edit",
+                icon: <Pencil className="h-4 w-4" />,
+                onClick: () => openEdit(log),
+              },
+              {
+                label: "Delete",
+                icon: <Trash2 className="h-4 w-4" />,
+                destructive: true,
+                onClick: () => setConfirmDeleteId(log.id),
+              },
+            ]}
+          />
+        }
+      />
+    );
+  }
+
   return (
     <div>
       <div className="mb-4 flex items-start justify-between gap-2">
@@ -638,12 +697,11 @@ function MaintenanceSection({
           <h2 className="text-lg font-semibold">Maintenance</h2>
           {logs.length > 0 && (
             <p className="text-sm text-muted-foreground">
-              {logs.length} entries · {upcoming.length} upcoming ·{" "}
-              {formatCurrency(totalCost)} spent
+              {logs.length} entries · {upcoming.length} upcoming · {formatCurrency(totalCost)} spent
             </p>
           )}
         </div>
-        <Button onClick={openAdd} size="sm" className="shrink-0">
+        <Button onClick={openAdd} size="sm" className="hidden shrink-0 md:inline-flex">
           <Plus className="h-4 w-4" /> Add
         </Button>
       </div>
@@ -682,131 +740,95 @@ function MaintenanceSection({
             <h3 className="mb-2 text-sm font-semibold text-muted-foreground">
               History
             </h3>
-            <DataList
-              items={logs}
-              getKey={(l) => l.id}
-              renderCard={(log) => (
-                <DataListCard
-                  primary={
-                    <>
-                      {log.serviceDate
-                        ? formatDateShort(log.serviceDate)
-                        : "Scheduled"}{" "}
-                      · {log.repairTypeName || "Unknown"}
-                    </>
-                  }
-                  trailing={log.cost ? formatCurrency(log.cost) : null}
-                  secondary={
-                    <>
-                      {log.serviceOdometer != null && (
-                        <>at {log.serviceOdometer.toLocaleString()} mi</>
-                      )}
-                      {log.serviceOdometer != null &&
-                        (log.nextDueDate || log.nextDueOdometer != null) &&
-                        " · "}
-                      {(log.nextDueDate || log.nextDueOdometer != null) && (
-                        <>Next: {formatNextDue(log)}</>
-                      )}
-                    </>
-                  }
-                  meta={log.notes || null}
-                  actions={
-                    <OverflowMenu
-                      actions={[
-                        {
-                          label: "Edit",
-                          icon: <Pencil className="h-4 w-4" />,
-                          onClick: () => openEdit(log),
-                        },
-                        {
-                          label: "Delete",
-                          icon: <Trash2 className="h-4 w-4" />,
-                          destructive: true,
-                          onClick: () => setConfirmDeleteId(log.id),
-                        },
-                      ]}
-                    />
-                  }
-                />
-              )}
-              renderTable={() => (
-                <Card>
-                  <CardContent className="p-0">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Service Date</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead className="text-right">Odometer</TableHead>
-                          <TableHead className="text-right">Cost</TableHead>
-                          <TableHead>Next Due</TableHead>
-                          <TableHead>Notes</TableHead>
-                          <TableHead className="w-[80px]" />
+
+            <div className="md:hidden">
+              <MonthGroupedList
+                items={logs}
+                getKey={(l) => l.id}
+                getDate={(l) => l.serviceDate}
+                renderItem={renderHistoryCard}
+              />
+            </div>
+
+            <div className="hidden md:block">
+              <Card>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Service Date</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead className="text-right">Odometer</TableHead>
+                        <TableHead className="text-right">Cost</TableHead>
+                        <TableHead>Next Due</TableHead>
+                        <TableHead>Notes</TableHead>
+                        <TableHead className="w-[80px]" />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {logs.map((log) => (
+                        <TableRow key={log.id}>
+                          <TableCell>
+                            {log.serviceDate ? (
+                              formatDate(log.serviceDate)
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell>{log.repairTypeName || "Unknown"}</TableCell>
+                          <TableCell className="text-right">
+                            {log.serviceOdometer != null
+                              ? log.serviceOdometer.toLocaleString()
+                              : "—"}
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            {log.cost ? formatCurrency(log.cost) : "—"}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {formatNextDue(log)}
+                          </TableCell>
+                          <TableCell className="max-w-[200px] truncate text-muted-foreground">
+                            {log.notes || "-"}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => openEdit(log)}
+                                className="rounded p-1 hover:bg-accent"
+                                aria-label="Edit"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={() => setConfirmDeleteId(log.id)}
+                                className="rounded p-1 text-destructive hover:bg-destructive/10"
+                                aria-label="Delete"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {logs.map((log) => (
-                          <TableRow key={log.id}>
-                            <TableCell>
-                              {log.serviceDate ? (
-                                formatDate(log.serviceDate)
-                              ) : (
-                                <span className="text-muted-foreground">—</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {log.repairTypeName || "Unknown"}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {log.serviceOdometer != null
-                                ? log.serviceOdometer.toLocaleString()
-                                : "—"}
-                            </TableCell>
-                            <TableCell className="text-right font-medium">
-                              {log.cost ? formatCurrency(log.cost) : "—"}
-                            </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
-                              {formatNextDue(log)}
-                            </TableCell>
-                            <TableCell className="max-w-[200px] truncate text-muted-foreground">
-                              {log.notes || "-"}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex gap-1">
-                                <button
-                                  onClick={() => openEdit(log)}
-                                  className="rounded p-1 hover:bg-accent"
-                                  aria-label="Edit"
-                                >
-                                  <Pencil className="h-3.5 w-3.5" />
-                                </button>
-                                <button
-                                  onClick={() => setConfirmDeleteId(log.id)}
-                                  className="rounded p-1 text-destructive hover:bg-destructive/10"
-                                  aria-label="Delete"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              )}
-            />
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
           </section>
         </div>
       )}
 
+      <FloatingActionButton
+        onClick={openAdd}
+        label="Add Maintenance"
+        icon={<Plus className="h-6 w-6" />}
+      />
+
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent onClose={() => setDialogOpen(false)}>
           <DialogHeader>
-            <DialogTitle>
-              {editing ? "Edit Maintenance" : "Add Maintenance"}
-            </DialogTitle>
+            <DialogTitle>{editing ? "Edit Maintenance" : "Add Maintenance"}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="flex flex-1 flex-col min-h-0">
             <DialogBody className="space-y-4">
@@ -870,9 +892,7 @@ function MaintenanceSection({
                       type="number"
                       inputMode="numeric"
                       value={form.serviceOdometer}
-                      onChange={(e) =>
-                        updateForm("serviceOdometer", e.target.value)
-                      }
+                      onChange={(e) => updateForm("serviceOdometer", e.target.value)}
                       placeholder="e.g. 145000"
                     />
                   </div>
@@ -908,9 +928,7 @@ function MaintenanceSection({
                       type="number"
                       inputMode="numeric"
                       value={form.nextDueOdometer}
-                      onChange={(e) =>
-                        updateForm("nextDueOdometer", e.target.value)
-                      }
+                      onChange={(e) => updateForm("nextDueOdometer", e.target.value)}
                       placeholder="e.g. 150000"
                     />
                   </div>
@@ -926,16 +944,10 @@ function MaintenanceSection({
                 />
               </div>
 
-              {formError && (
-                <p className="text-sm text-destructive">{formError}</p>
-              )}
+              {formError && <p className="text-sm text-destructive">{formError}</p>}
             </DialogBody>
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setDialogOpen(false)}
-              >
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel
               </Button>
               <Button type="submit">{editing ? "Update" : "Add"}</Button>
@@ -960,7 +972,6 @@ function MaintenanceSection({
   );
 }
 
-// ── Upcoming card ───────────────────────────────────────────────────────────
 function UpcomingCard({
   item,
   onEdit,
@@ -969,9 +980,7 @@ function UpcomingCard({
   onEdit: () => void;
 }) {
   const today = new Date().toISOString().slice(0, 10);
-  const daysUntil = item.nextDueDate
-    ? daysBetween(today, item.nextDueDate)
-    : null;
+  const daysUntil = item.nextDueDate ? daysBetween(today, item.nextDueDate) : null;
 
   let urgency: "overdue" | "due_soon" | "upcoming" = "upcoming";
   if (daysUntil !== null && daysUntil < 0) urgency = "overdue";
@@ -989,13 +998,13 @@ function UpcomingCard({
     >
       <UrgencyIcon urgency={urgency} />
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="truncate font-semibold">
             {item.repairTypeName || "Maintenance"}
           </span>
           <UrgencyBadge urgency={urgency} />
         </div>
-        <div className="mt-0.5 text-sm text-muted-foreground break-words">
+        <div className="mt-0.5 break-words text-sm text-muted-foreground">
           {item.nextDueDate && (
             <span>
               Due {formatDate(item.nextDueDate)}
@@ -1029,9 +1038,7 @@ function UrgencyIcon({
     return <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />;
   if (urgency === "due_soon")
     return <Clock className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />;
-  return (
-    <CalendarCheck className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
-  );
+  return <CalendarCheck className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />;
 }
 
 function UrgencyBadge({

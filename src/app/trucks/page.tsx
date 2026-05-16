@@ -8,8 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { OverflowMenu } from "@/components/ui/overflow-menu";
 import { ConfirmSheet } from "@/components/ui/confirm-sheet";
+import { PageContainer } from "@/components/shared/page-container";
+import { FloatingActionButton } from "@/components/shared/fab";
 import { useDemo } from "@/lib/demo-context";
 import { PageHeader } from "@/components/layout/page-header";
+import { useRouter } from "next/navigation";
 import { Plus, Truck, Trash2, ChevronRight } from "lucide-react";
 
 interface TruckRecord {
@@ -20,6 +23,7 @@ interface TruckRecord {
 }
 
 export default function TrucksPage() {
+  const router = useRouter();
   const [trucks, setTrucks] = useState<TruckRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
@@ -27,6 +31,7 @@ export default function TrucksPage() {
 
   useEffect(() => {
     fetchTrucks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [demoVisible]);
 
   async function fetchTrucks() {
@@ -52,26 +57,18 @@ export default function TrucksPage() {
   );
 
   return (
-    <div>
-      <PageHeader
-        title="Trucks"
-        subtitle="Manage your fleet vehicles"
-        actions={addButton}
-      />
+    <PageContainer>
+      <PageHeader title="Trucks" subtitle="Manage your fleet vehicles" actions={addButton} />
 
-      {/* Mobile-only header row (desktop uses PageHeader) */}
+      {/* Mobile-only header (desktop uses PageHeader) */}
       <div className="mb-4 flex items-center justify-between md:hidden">
-        <p className="text-sm text-muted-foreground">Manage your fleet vehicles</p>
-        {addButton}
+        <h1 className="text-xl font-bold">Trucks</h1>
       </div>
 
       {loading ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-24 rounded-xl border bg-card animate-pulse"
-            />
+            <div key={i} className="h-24 rounded-xl border bg-card animate-pulse" />
           ))}
         </div>
       ) : trucks.length === 0 ? (
@@ -93,29 +90,29 @@ export default function TrucksPage() {
           {trucks.map((truck) => (
             <Card
               key={truck.id}
-              className="relative transition-shadow hover:shadow-md"
+              className="relative flex items-center gap-2 p-3 transition-shadow hover:shadow-md"
             >
               <Link
                 href={`/trucks/${truck.id}/trips`}
-                className="flex items-center justify-between gap-2 p-4"
+                className="flex min-w-0 flex-1 items-center gap-3"
               >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted">
+                  <Truck className="h-5 w-5 text-primary" />
+                </div>
                 <div className="min-w-0 flex-1">
                   <CardTitle className="flex items-center gap-2 text-base">
-                    Truck #{truck.truckNumber}
+                    <span className="truncate">Truck #{truck.truckNumber}</span>
                     {truck.isDemo === 1 && (
-                      <Badge variant="secondary" className="text-xs">
+                      <Badge variant="secondary" className="text-xs shrink-0">
                         DEMO
                       </Badge>
                     )}
                   </CardTitle>
-                  <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
-                    <Truck className="h-4 w-4" />
-                    <span>View details</span>
-                  </div>
+                  <p className="text-xs text-muted-foreground">View details</p>
                 </div>
-                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
               </Link>
-              <div className="absolute right-2 top-2">
+              <div className="shrink-0">
                 <OverflowMenu
                   actions={[
                     {
@@ -132,6 +129,12 @@ export default function TrucksPage() {
         </div>
       )}
 
+      <FloatingActionButton
+        onClick={() => router.push("/trucks/new")}
+        label="Add Truck"
+        icon={<Plus className="h-6 w-6" />}
+      />
+
       <ConfirmSheet
         open={confirmDeleteId !== null}
         onOpenChange={(open) => !open && setConfirmDeleteId(null)}
@@ -144,6 +147,6 @@ export default function TrucksPage() {
           setConfirmDeleteId(null);
         }}
       />
-    </div>
+    </PageContainer>
   );
 }
