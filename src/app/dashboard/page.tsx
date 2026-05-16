@@ -256,7 +256,6 @@ export default function DashboardPage() {
     return (
       <PageContainer>
         <PageHeader title="Fleet Dashboard" />
-        <h1 className="mb-4 text-xl font-bold md:hidden">Fleet Dashboard</h1>
         <DateRangePicker value={dateRange} onChange={setDateRange} className="mb-6" />
         <DataListSkeleton rows={3} />
       </PageContainer>
@@ -267,7 +266,6 @@ export default function DashboardPage() {
     return (
       <PageContainer>
         <PageHeader title="Fleet Dashboard" />
-        <h1 className="mb-4 text-xl font-bold md:hidden">Fleet Dashboard</h1>
         <EmptyState
           icon={<Truck className="h-12 w-12" />}
           title="No trucks yet"
@@ -309,11 +307,8 @@ export default function DashboardPage() {
     <PageContainer>
       <PageHeader title="Fleet Dashboard" actions={desktopExportButtons} />
 
-      {/* Mobile title bar */}
-      <div className="mb-4 flex items-center justify-between md:hidden">
-        <h1 className="text-xl font-bold">Fleet Dashboard</h1>
-        {exportMenu}
-      </div>
+      {/* Mobile-only export menu (TopBar already shows the title) */}
+      <div className="mb-4 flex justify-end md:hidden">{exportMenu}</div>
 
       <DateRangePicker value={dateRange} onChange={setDateRange} className="mb-6" />
 

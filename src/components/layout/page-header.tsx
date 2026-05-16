@@ -4,7 +4,6 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 
 interface PageHeaderState {
   title: string | null;
-  actions: ReactNode | null;
 }
 
 interface PageHeaderContextValue extends PageHeaderState {
@@ -13,7 +12,6 @@ interface PageHeaderContextValue extends PageHeaderState {
 
 const PageHeaderContext = createContext<PageHeaderContextValue>({
   title: null,
-  actions: null,
   set: () => {},
 });
 
@@ -22,7 +20,7 @@ export function usePageHeader() {
 }
 
 export function PageHeaderProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<PageHeaderState>({ title: null, actions: null });
+  const [state, setState] = useState<PageHeaderState>({ title: null });
   const value: PageHeaderContextValue = {
     ...state,
     set: (patch) => setState((s) => ({ ...s, ...patch })),
@@ -42,10 +40,13 @@ interface PageHeaderProps {
 export function PageHeader({ title, subtitle, actions, className }: PageHeaderProps) {
   const { set } = usePageHeader();
 
+  // Only the title goes to the mobile TopBar. Desktop "actions" stay on this
+  // PageHeader component, which is hidden < md. This prevents action buttons
+  // from crowding the mobile TopBar and from being duplicated inside the page.
   useEffect(() => {
-    set({ title, actions: actions ?? null });
-    return () => set({ title: null, actions: null });
-  }, [title, actions, set]);
+    set({ title });
+    return () => set({ title: null });
+  }, [title, set]);
 
   return (
     <div className={`mb-4 hidden md:flex md:items-start md:justify-between md:gap-4 ${className ?? ""}`}>

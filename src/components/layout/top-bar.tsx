@@ -8,7 +8,7 @@ interface TopBarProps {
 }
 
 export function TopBar({ onMenuClick }: TopBarProps) {
-  const { title, actions } = usePageHeader();
+  const { title } = usePageHeader();
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/95 backdrop-blur px-3 md:hidden safe-x">
@@ -21,7 +21,6 @@ export function TopBar({ onMenuClick }: TopBarProps) {
         <Menu className="h-5 w-5" />
       </button>
       <h1 className="flex-1 truncate text-base font-semibold">{title ?? "Zenan Fleet"}</h1>
-      {actions && <div className="flex items-center gap-1">{actions}</div>}
     </header>
   );
 }
