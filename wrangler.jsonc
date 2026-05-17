@@ -23,10 +23,19 @@
   // ── Preview environment ────────────────────────────────────────────────
   // Deploy with:  npx opennextjs-cloudflare deploy -- --env preview
   // Lives at:     https://zenan-fleet-preview.manison88.workers.dev
+  //
+  // Hard-locked to the workers.dev subdomain only — explicit empty `routes`
+  // overrides the top-level route inheritance so preview deploys CANNOT
+  // claim zenan.312itconsulting.com even if wrangler prompts about it.
+  // `workers_dev: true` is the default but kept explicit so the intent is
+  // obvious: this worker only serves on *.workers.dev.
+  //
   // Separate D1 database so prod data is never touched by preview tests.
   "env": {
     "preview": {
       "name": "zenan-fleet-preview",
+      "workers_dev": true,
+      "routes": [],
       "d1_databases": [
         {
           "binding": "DB",
