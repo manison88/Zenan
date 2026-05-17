@@ -18,5 +18,23 @@
       "database_id": "428ca96c-f279-4e9c-9e27-887a1c405965",
       "migrations_dir": "src/db/migrations"
     }
-  ]
+  ],
+
+  // ── Preview environment ────────────────────────────────────────────────
+  // Deploy with:  npx opennextjs-cloudflare deploy -- --env preview
+  // Lives at:     https://zenan-fleet-preview.manison88.workers.dev
+  // Separate D1 database so prod data is never touched by preview tests.
+  "env": {
+    "preview": {
+      "name": "zenan-fleet-preview",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "zenan-fleet-db-preview",
+          "database_id": "2e23cea7-fb8e-4a17-8913-eae9707ad296",
+          "migrations_dir": "src/db/migrations"
+        }
+      ]
+    }
+  }
 }
