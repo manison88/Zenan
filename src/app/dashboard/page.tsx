@@ -19,7 +19,6 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { OverflowMenu } from "@/components/ui/overflow-menu";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageContainer } from "@/components/shared/page-container";
-import { StatRow } from "@/components/shared/stat-row";
 import { useDemo } from "@/lib/demo-context";
 import {
   type DateRange,
@@ -312,24 +311,24 @@ export default function DashboardPage() {
 
       <DateRangePicker value={dateRange} onChange={setDateRange} className="mb-6" />
 
-      {/* Summary — stacked rows on mobile, 3-up cards on sm+ */}
-      <div className="mb-6 space-y-2 sm:hidden">
-        <StatRow
-          icon={<TrendingUp className="h-4 w-4 text-green-600" />}
+      {/* Summary — compact 3-up tiles on mobile, larger 3-up cards on sm+ */}
+      <div className="mb-6 grid grid-cols-3 gap-2 sm:hidden">
+        <CompactStat
+          icon={<TrendingUp className="h-3 w-3" />}
           label="Gross"
-          value={formatCurrency(totals.grossPay)}
+          value={formatCurrencyCompact(totals.grossPay)}
           tone="positive"
         />
-        <StatRow
-          icon={<TrendingDown className="h-4 w-4 text-red-500" />}
+        <CompactStat
+          icon={<TrendingDown className="h-3 w-3" />}
           label="Deductions"
-          value={formatCurrency(totals.totalDeductions)}
+          value={formatCurrencyCompact(totals.totalDeductions)}
           tone="negative"
         />
-        <StatRow
-          icon={<DollarSign className="h-4 w-4 text-blue-600" />}
+        <CompactStat
+          icon={<DollarSign className="h-3 w-3" />}
           label="Net Pay"
-          value={formatCurrency(totals.netPay)}
+          value={formatCurrencyCompact(totals.netPay)}
           tone={totals.netPay >= 0 ? "positive" : "negative"}
           highlight
         />
@@ -626,5 +625,43 @@ function SummaryStat({ icon, label, value, tone, highlight }: SummaryStatProps) 
         </p>
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * Compact stat tile for mobile — ~1/3 the vertical footprint of <SummaryStat>.
+ * Three of these in a grid-cols-3 fit on a 320 px screen without crowding.
+ */
+function CompactStat({
+  icon,
+  label,
+  value,
+  tone,
+  highlight,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  tone: "positive" | "negative";
+  highlight?: boolean;
+}) {
+  return (
+    <div
+      className={`min-w-0 rounded-lg border bg-card p-2.5 shadow-sm ${
+        highlight ? "ring-1 ring-primary/30" : ""
+      }`}
+    >
+      <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+        {icon}
+        <span className="truncate">{label}</span>
+      </div>
+      <div
+        className={`mt-0.5 font-mono text-sm font-bold tabular-nums ${
+          tone === "positive" ? "text-green-700" : "text-red-600"
+        }`}
+      >
+        {value}
+      </div>
+    </div>
   );
 }

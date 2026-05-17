@@ -5,7 +5,6 @@ import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/dashboard/date-range-picker";
 import { DataListSkeleton } from "@/components/shared/data-list";
-import { StatRow } from "@/components/shared/stat-row";
 import {
   type DateRange,
   getPresetRange,
@@ -79,24 +78,24 @@ export default function TruckSummaryPage() {
         </div>
       ) : summary ? (
         <div className="space-y-4">
-          {/* Mobile: stacked rows */}
-          <div className="space-y-2 sm:hidden">
-            <StatRow
-              icon={<TrendingUp className="h-4 w-4 text-green-600" />}
+          {/* Mobile: compact 3-up tiles */}
+          <div className="grid grid-cols-3 gap-2 sm:hidden">
+            <CompactStat
+              icon={<TrendingUp className="h-3 w-3" />}
               label="Gross"
-              value={formatCurrency(summary.grossPay)}
+              value={formatCurrencyCompact(summary.grossPay)}
               tone="positive"
             />
-            <StatRow
-              icon={<TrendingDown className="h-4 w-4 text-red-500" />}
+            <CompactStat
+              icon={<TrendingDown className="h-3 w-3" />}
               label="Deductions"
-              value={formatCurrency(summary.totalDeductions)}
+              value={formatCurrencyCompact(summary.totalDeductions)}
               tone="negative"
             />
-            <StatRow
-              icon={<DollarSign className="h-4 w-4 text-blue-600" />}
+            <CompactStat
+              icon={<DollarSign className="h-3 w-3" />}
               label="Net Pay"
-              value={formatCurrency(summary.netPay)}
+              value={formatCurrencyCompact(summary.netPay)}
               tone={summary.netPay >= 0 ? "positive" : "negative"}
               highlight
             />
@@ -189,6 +188,42 @@ function SummaryCard({
         </p>
       </CardContent>
     </Card>
+  );
+}
+
+function CompactStat({
+  icon,
+  label,
+  value,
+  tone,
+  highlight,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  tone: "positive" | "negative";
+  highlight?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "min-w-0 rounded-lg border bg-card p-2.5 shadow-sm",
+        highlight && "ring-1 ring-primary/30"
+      )}
+    >
+      <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+        {icon}
+        <span className="truncate">{label}</span>
+      </div>
+      <div
+        className={cn(
+          "mt-0.5 font-mono text-sm font-bold tabular-nums",
+          tone === "positive" ? "text-green-700" : "text-red-600"
+        )}
+      >
+        {value}
+      </div>
+    </div>
   );
 }
 
